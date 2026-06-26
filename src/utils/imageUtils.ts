@@ -4,7 +4,7 @@ export async function pickImageFromGallery(): Promise<string | null> {
   const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (status !== "granted") return null;
   const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    mediaTypes: ["images" as any],
     quality: 0.8,
     allowsEditing: true,
     aspect: [4, 3],

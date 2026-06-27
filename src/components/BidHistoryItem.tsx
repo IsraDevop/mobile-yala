@@ -1,8 +1,8 @@
 import { StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import type { Bid } from "../types";
-import { formatPrice, formatDateTime, getAvatarInitials } from "../utils/formatters";
-import { palette } from "../theme/theme";
+import { formatPrice, getAvatarInitials } from "../utils/formatters";
+import { palette, fonts } from "../theme/theme";
 
 interface BidHistoryItemProps {
   bid: Bid;
@@ -11,24 +11,15 @@ interface BidHistoryItemProps {
 
 export function BidHistoryItem({ bid, isHighest }: BidHistoryItemProps) {
   return (
-    <View style={[styles.row, isHighest && styles.highlighted]}>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>
-          {getAvatarInitials(bid.bidder.name)}
-        </Text>
+    <View style={styles.row}>
+      <View style={styles.left}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{getAvatarInitials(bid.bidder.name)}</Text>
+        </View>
+        <Text style={styles.name}>{bid.bidder.name}</Text>
+        {isHighest && <Text style={styles.tag}>· más alta</Text>}
       </View>
-      <View style={styles.info}>
-        <Text variant="bodyMedium" style={styles.name}>
-          {bid.bidder.name}
-          {isHighest && (
-            <Text style={styles.badge}> · Puja más alta</Text>
-          )}
-        </Text>
-        <Text variant="labelSmall" style={styles.date}>
-          {formatDateTime(bid.placedAt)}
-        </Text>
-      </View>
-      <Text variant="titleMedium" style={styles.amount}>
+      <Text style={[styles.amount, isHighest && styles.amountHigh]}>
         {formatPrice(bid.amount)}
       </Text>
     </View>
@@ -39,24 +30,23 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 12,
-    backgroundColor: "#fff",
+    justifyContent: "space-between",
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F2F3F6",
   },
-  highlighted: { backgroundColor: "#FFF7ED" },
+  left: { flexDirection: "row", alignItems: "center", gap: 8 },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: palette.primary,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: palette.avatarBg,
     justifyContent: "center",
     alignItems: "center",
   },
-  avatarText: { color: "#fff", fontWeight: "700", fontSize: 13 },
-  info: { flex: 1 },
-  name: { color: palette.textPrimary, fontWeight: "600" },
-  badge: { color: palette.secondary, fontWeight: "600" },
-  date: { color: palette.textSecondary },
-  amount: { color: palette.secondary, fontWeight: "800" },
+  avatarText: { color: palette.primary, fontFamily: fonts.extrabold, fontSize: 10 },
+  name: { fontSize: 13, color: "#5A5F6A", fontFamily: fonts.semibold },
+  tag: { fontSize: 11, color: palette.secondary, fontFamily: fonts.semibold },
+  amount: { fontFamily: fonts.monoBold, fontSize: 13, color: palette.textPrimary },
+  amountHigh: { color: palette.secondary },
 });

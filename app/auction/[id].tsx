@@ -1,23 +1,23 @@
 import { useState } from "react";
-import { Image, ScrollView, StyleSheet, View } from "react-native";
-import { Avatar, Button, Divider, Text, TextInput } from "react-native-paper";
-import { useLocalSearchParams } from "expo-router";
+import { Image, ScrollView, StyleSheet, TextInput, View, Pressable } from "react-native";
+import { Text } from "react-native-paper";
+import { router, useLocalSearchParams } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { useFetch } from "../../src/hooks/useFetch";
 import { usePaginatedFetch } from "../../src/hooks/usePaginatedFetch";
 import { CountdownTimer } from "../../src/components/CountdownTimer";
-import { PriceText } from "../../src/components/PriceText";
 import { BidHistoryItem } from "../../src/components/BidHistoryItem";
+import { ScreenHeader } from "../../src/components/ScreenHeader";
 import { Loader } from "../../src/components/Loader";
 import { ErrorView } from "../../src/components/ErrorView";
 import { useAuth } from "../../src/context/AuthContext";
 import { useToast } from "../../src/context/ToastContext";
 import { bidService } from "../../src/services/bidService";
 import { getApiErrorMessage } from "../../src/utils/apiError";
-import { getAvatarInitials } from "../../src/utils/formatters";
+import { formatPrice } from "../../src/utils/formatters";
 import { isValidBidAmount } from "../../src/utils/validators";
 import type { Auction, Bid } from "../../src/types";
-import { palette } from "../../src/theme/theme";
-import { router } from "expo-router";
+import { palette, fonts } from "../../src/theme/theme";
 
 export default function AuctionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -25,28 +25,16 @@ export default function AuctionDetailScreen() {
   const { showToast } = useToast();
   const [bidAmount, setBidAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [isExpired, setIsExpired] = useState(false);
+  const [expired, setExpired] = useState(false);
 
-  const { data: auction, loading, error, refetch } = useFetch<Auction>(
-    id ? `/auctions/${id}` : null
-  );
-
-  const { items: bids, refresh: refreshBids } = usePaginatedFetch<Bid>(
-    id ? `/bids/auction/${id}` : ""
-  );
-
-  const isActive = auction?.status === "ACTIVE" && !isExpired;
-  const suggestedBid = auction ? auction.currentPrice + auction.currentPrice * 0.01 : 0;
+  const { data: auction, loading, error, refetch } = useFetch<Auction>(id ? `/auctions/${id}` : null);
+  const { items: bids, refresh: refreshBids } = usePaginatedFetch<Bid>(id ? `/bids/auction/${id}` : "");
 
   async function handleBid() {
     if (!auction) return;
     const amount = parseFloat(bidAmount);
-    if (isNaN(amount)) {
-      showToast("Ingresá un monto válido", "error");
-      return;
-    }
-    if (!isValidBidAmount(amount, auction.currentPrice)) {
-      showToast(`Tu puja debe superar S/. ${auction.currentPrice.toFixed(2)}`, "error");
+    if (isNaN(amount) || !isValidBidAmount(amount, auction.currentPrice)) {
+      showToast(`Tu puja debe superar ${formatPrice(auction.currentPrice)}`, "error");
       return;
     }
     try {
@@ -63,178 +51,146 @@ export default function AuctionDetailScreen() {
     }
   }
 
-  if (loading) return <Loader />;
-  if (error || !auction) return <ErrorView message={error ?? "No se encontró la subasta"} onRetry={refetch} />;
+  if (loading) return (<View style={styles.flex}><ScreenHeader title="Volver" /><Loader /></View>);
+  if (error || !auction) return (<View style={styles.flex}><ScreenHeader title="Volver" /><ErrorView message={error ?? "No encontrada"} onRetry={refetch} /></View>);
 
   const listing = auction.listing;
-  const imageUrl = listing?.imageUrls?.[0];
+  const image = listing?.imageUrls?.[0];
+  const isActive = auction.status === "ACTIVE" && !expired;
+  const increment = Math.max(1, Math.round(auction.currentPrice * 0.01));
 
   return (
-    <ScrollView style={styles.flex} contentContainerStyle={styles.container}>
-      {imageUrl ? (
-        <Image source={{ uri: imageUrl }} style={styles.image} />
-      ) : (
-        <View style={styles.imagePlaceholder}>
-          <Text style={styles.placeholderText}>YALA</Text>
+    <View style={styles.flex}>
+      <ScreenHeader title="Volver" />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.imageWrap}>
+          {image ? (
+            <Image source={{ uri: image }} style={styles.image} />
+          ) : (
+            <View style={[styles.image, styles.placeholder]}>
+              <Text style={styles.placeholderText}>Yala</Text>
+            </View>
+          )}
+          <View style={styles.liveBadge}>
+            <View style={styles.liveDot} />
+            <Text style={styles.liveText}>En vivo</Text>
+          </View>
         </View>
-      )}
 
-      <View style={styles.content}>
-        {listing?.category && (
-          <Text variant="labelSmall" style={styles.category}>
-            {listing.category.name.toUpperCase()}
-            {listing.condition ? ` · ${listing.condition.toUpperCase()}` : ""}
+        <View style={styles.head}>
+          <Text style={styles.breadcrumb}>
+            {listing?.category?.name?.toUpperCase()} · {listing?.condition?.toUpperCase()}
           </Text>
-        )}
-        <Text variant="headlineSmall" style={styles.title}>
-          {listing?.title ?? "Subasta"}
-        </Text>
+          <Text style={styles.title}>{listing?.title ?? "Subasta"}</Text>
+        </View>
 
         <View style={styles.bidBox}>
-          <View style={styles.bidBoxHeader}>
-            <View>
-              <PriceText amount={auction.currentPrice} label="PUJA ACTUAL" size="large" />
+          <View style={styles.bidBoxTop}>
+            <View style={styles.bidLabelRow}>
+              <View style={styles.orangeDot} />
+              <Text style={styles.bidLabel}>PUJA ACTUAL</Text>
             </View>
-            <View style={styles.countdown}>
-              <Text variant="labelSmall" style={styles.countdownLabel}>CIERRA EN</Text>
-              <CountdownTimer endsAt={auction.endsAt} onExpire={() => setIsExpired(true)} />
-            </View>
+            <Text style={styles.closesLabel}>⏱ CIERRA EN</Text>
           </View>
-
-          <Text variant="labelSmall" style={styles.suggestedText}>
-            Incremento sugerido: S/. {suggestedBid.toFixed(2)} (1%)
+          <View style={styles.bidBoxMid}>
+            <Text style={styles.bidPrice}>{formatPrice(auction.currentPrice)}</Text>
+            <CountdownTimer endsAt={auction.endsAt} variant="light" onExpire={() => setExpired(true)} />
+          </View>
+          <Text style={styles.increment}>
+            {bids.length} puja{bids.length !== 1 ? "s" : ""} · incremento sugerido {formatPrice(increment)} (1%)
           </Text>
+        </View>
 
-          {isActive && user ? (
+        <View style={styles.historySection}>
+          <Text style={styles.historyTitle}>
+            Historial de pujas <Text style={styles.historyMeta}>· en tiempo real</Text>
+          </Text>
+          {bids.length === 0 ? (
+            <Text style={styles.noBids}>Todavía no hay pujas. ¡Sé el primero!</Text>
+          ) : (
+            bids.map((b, i) => <BidHistoryItem key={b.id} bid={b} isHighest={i === 0} />)
+          )}
+        </View>
+      </ScrollView>
+
+      {isActive && (
+        <View style={styles.footer}>
+          {user ? (
             <>
-              <Text variant="labelMedium" style={styles.bidLabel}>Tu puja</Text>
-              <View style={styles.bidRow}>
+              <View style={styles.bidInputWrap}>
+                <Text style={styles.bidInputPrefix}>S/.</Text>
                 <TextInput
                   value={bidAmount}
                   onChangeText={setBidAmount}
-                  placeholder={`S/. ${(auction.currentPrice + 1).toFixed(2)}`}
+                  placeholder={`${(auction.currentPrice + increment).toFixed(0)}`}
+                  placeholderTextColor="#B4B8C0"
                   keyboardType="decimal-pad"
-                  mode="outlined"
                   style={styles.bidInput}
-                  left={<TextInput.Affix text="S/." />}
                 />
-                <Button
-                  mode="contained"
-                  onPress={handleBid}
-                  loading={submitting}
-                  disabled={submitting}
-                  style={styles.bidBtn}
-                  icon="lightning-bolt"
-                >
-                  Pujar
-                </Button>
               </View>
+              <Pressable style={styles.pujarBtn} onPress={handleBid} disabled={submitting}>
+                <Ionicons name="flash" size={18} color="#fff" />
+                <Text style={styles.pujarText}>{submitting ? "..." : "Pujar"}</Text>
+              </Pressable>
             </>
-          ) : !user ? (
-            <Button
-              mode="contained"
-              onPress={() => router.push("/(auth)/login")}
-              style={styles.loginBtn}
-            >
-              Ingresar para pujar
-            </Button>
           ) : (
-            <Text variant="bodyMedium" style={styles.expiredText}>
-              Esta subasta ya finalizó
-            </Text>
+            <Pressable style={styles.loginBtn} onPress={() => router.push("/(auth)/login")}>
+              <Text style={styles.loginText}>Ingresá para pujar</Text>
+            </Pressable>
           )}
         </View>
-
-        {listing?.seller && (
-          <View style={styles.sellerRow}>
-            <Avatar.Text
-              size={40}
-              label={getAvatarInitials(listing.seller.name)}
-              style={{ backgroundColor: palette.primary }}
-            />
-            <Text variant="bodyMedium" style={styles.sellerName}>
-              {listing.seller.name}
-            </Text>
-            <Button
-              compact
-              mode="outlined"
-              onPress={() => router.push(`/seller/${listing.seller.id}`)}
-            >
-              Ver perfil
-            </Button>
-          </View>
-        )}
-
-        <Divider style={styles.divider} />
-
-        <View style={styles.bidHistoryHeader}>
-          <Text variant="titleMedium" style={styles.sectionTitle}>
-            Historial de pujas
-          </Text>
-          <Text variant="labelSmall" style={styles.realtime}>en tiempo real</Text>
-        </View>
-
-        {bids.length === 0 ? (
-          <Text style={styles.noBids}>Todavía no hay pujas. ¡Sé el primero!</Text>
-        ) : (
-          bids.map((bid, i) => (
-            <BidHistoryItem key={bid.id} bid={bid} isHighest={i === 0} />
-          ))
-        )}
-
-        {listing?.description && (
-          <>
-            <Divider style={styles.divider} />
-            <Text variant="titleMedium" style={styles.sectionTitle}>Descripción</Text>
-            <Text variant="bodyMedium" style={styles.description}>
-              {listing.description}
-            </Text>
-          </>
-        )}
-      </View>
-    </ScrollView>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: palette.background },
-  container: { paddingBottom: 40 },
-  image: { width: "100%", height: 280, resizeMode: "cover" },
-  imagePlaceholder: {
-    width: "100%", height: 280, backgroundColor: "#1C1C1E",
-    justifyContent: "center", alignItems: "center",
+  content: { paddingBottom: 24 },
+  imageWrap: { marginHorizontal: 18, height: 200, borderRadius: 22, overflow: "hidden", backgroundColor: palette.dark },
+  image: { width: "100%", height: 200 },
+  placeholder: { justifyContent: "center", alignItems: "center" },
+  placeholderText: { color: "#3A3D46", fontSize: 30, fontFamily: fonts.extrabold },
+  liveBadge: {
+    position: "absolute", top: 12, left: 12, flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: "#fff", borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5,
   },
-  placeholderText: { color: "#fff", fontSize: 40, fontWeight: "900" },
-  content: { padding: 16 },
-  category: { color: palette.secondary, letterSpacing: 1, marginBottom: 4 },
-  title: { fontWeight: "900", color: palette.textPrimary, marginBottom: 16 },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: palette.secondary },
+  liveText: { color: palette.secondary, fontFamily: fonts.bold, fontSize: 11 },
+  head: { paddingHorizontal: 18, paddingTop: 14 },
+  breadcrumb: { fontFamily: fonts.monoBold, fontSize: 10, color: palette.primary, letterSpacing: 0.6 },
+  title: { fontFamily: fonts.extrabold, fontSize: 19, color: palette.textPrimary, lineHeight: 24, marginTop: 5 },
   bidBox: {
-    backgroundColor: "#FFF7ED",
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#FED7AA",
-    marginBottom: 16,
+    marginHorizontal: 18, marginTop: 14, backgroundColor: palette.secondaryBg,
+    borderWidth: 1, borderColor: palette.secondaryLight, borderRadius: 20, padding: 16,
   },
-  bidBoxHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8 },
-  countdown: { alignItems: "flex-end" },
-  countdownLabel: { color: palette.textSecondary, marginBottom: 4 },
-  suggestedText: { color: palette.textSecondary, marginBottom: 12 },
-  bidLabel: { color: palette.textPrimary, marginBottom: 6 },
-  bidRow: { flexDirection: "row", gap: 8, alignItems: "center" },
-  bidInput: { flex: 1 },
-  bidBtn: { backgroundColor: palette.secondary },
-  loginBtn: { backgroundColor: palette.primary, marginTop: 8 },
-  expiredText: { color: palette.textSecondary, textAlign: "center", marginTop: 8 },
-  sellerRow: {
-    flexDirection: "row", alignItems: "center", gap: 12,
-    backgroundColor: "#fff", padding: 12, borderRadius: 12, marginBottom: 16,
+  bidBoxTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  bidLabelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  orangeDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: palette.secondary },
+  bidLabel: { fontFamily: fonts.monoBold, fontSize: 11, color: palette.secondary },
+  closesLabel: { fontFamily: fonts.monoBold, fontSize: 11, color: "#B86A4B" },
+  bidBoxMid: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: 6 },
+  bidPrice: { fontFamily: fonts.monoExtra, fontSize: 28, color: palette.secondary },
+  increment: { fontFamily: fonts.mono, fontSize: 11, color: "#B86A4B", marginTop: 8 },
+  historySection: { paddingHorizontal: 18, paddingTop: 16 },
+  historyTitle: { fontFamily: fonts.bold, fontSize: 13, color: palette.textPrimary, marginBottom: 4 },
+  historyMeta: { fontFamily: fonts.mono, fontSize: 10, color: palette.textTertiary },
+  noBids: { fontFamily: fonts.regular, fontSize: 13, color: palette.textTertiary, paddingVertical: 16, textAlign: "center" },
+  footer: {
+    flexDirection: "row", gap: 10, alignItems: "center", padding: 14,
+    backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: palette.borderLight,
   },
-  sellerName: { flex: 1, fontWeight: "600" },
-  divider: { marginVertical: 16 },
-  bidHistoryHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
-  sectionTitle: { fontWeight: "700", color: palette.textPrimary },
-  realtime: { color: palette.textSecondary },
-  noBids: { color: palette.textSecondary, textAlign: "center", paddingVertical: 16 },
-  description: { color: palette.textPrimary, lineHeight: 22 },
+  bidInputWrap: {
+    flex: 1, height: 52, borderRadius: 14, borderWidth: 1.5, borderColor: palette.border,
+    flexDirection: "row", alignItems: "center", paddingHorizontal: 16, gap: 4,
+  },
+  bidInputPrefix: { fontFamily: fonts.monoBold, fontSize: 14, color: palette.textPrimary },
+  bidInput: { flex: 1, fontFamily: fonts.monoBold, fontSize: 15, color: palette.textPrimary, padding: 0 },
+  pujarBtn: {
+    flexDirection: "row", alignItems: "center", gap: 6, height: 52, paddingHorizontal: 22,
+    borderRadius: 16, backgroundColor: palette.secondary,
+  },
+  pujarText: { fontFamily: fonts.extrabold, fontSize: 16, color: "#fff" },
+  loginBtn: { flex: 1, height: 52, borderRadius: 16, backgroundColor: palette.primary, justifyContent: "center", alignItems: "center" },
+  loginText: { fontFamily: fonts.extrabold, fontSize: 16, color: "#fff" },
 });

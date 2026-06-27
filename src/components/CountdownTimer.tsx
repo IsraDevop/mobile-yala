@@ -2,14 +2,15 @@ import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import { getTimeLeft } from "../utils/formatters";
-import { palette } from "../theme/theme";
+import { palette, fonts } from "../theme/theme";
 
 interface CountdownTimerProps {
   endsAt: string;
   onExpire?: () => void;
+  variant?: "onImage" | "light";
 }
 
-export function CountdownTimer({ endsAt, onExpire }: CountdownTimerProps) {
+export function CountdownTimer({ endsAt, onExpire, variant = "light" }: CountdownTimerProps) {
   const [time, setTime] = useState(() => getTimeLeft(endsAt));
 
   useEffect(() => {
@@ -25,29 +26,37 @@ export function CountdownTimer({ endsAt, onExpire }: CountdownTimerProps) {
   }, [endsAt, onExpire]);
 
   if (time.expired) {
-    return (
-      <Text variant="labelLarge" style={styles.expired}>Subasta finalizada</Text>
-    );
+    return <Text style={styles.expired}>Finalizada</Text>;
   }
 
-  const segments = [
-    { value: time.days, label: "DÍAS" },
-    { value: time.hours, label: "HRS" },
-    { value: time.minutes, label: "MIN" },
-    { value: time.seconds, label: "SEG" },
-  ];
+  const segments =
+    time.days > 0
+      ? [
+          { value: time.days, label: "DÍAS" },
+          { value: time.hours, label: "HRS" },
+          { value: time.minutes, label: "MIN" },
+        ]
+      : [
+          { value: time.hours, label: "HRS" },
+          { value: time.minutes, label: "MIN" },
+          { value: time.seconds, label: "SEG" },
+        ];
+
+  const onImage = variant === "onImage";
 
   return (
     <View style={styles.row}>
-      {segments.map(({ value, label }, i) => (
-        <View key={label} style={styles.segment}>
-          <View style={styles.block}>
-            <Text variant="headlineSmall" style={styles.number}>
-              {String(value).padStart(2, "0")}
-            </Text>
-          </View>
-          <Text variant="labelSmall" style={styles.label}>{label}</Text>
-          {i < 3 && <Text style={styles.colon}>:</Text>}
+      {segments.map(({ value, label }) => (
+        <View
+          key={label}
+          style={[styles.block, onImage ? styles.blockImage : styles.blockLight]}
+        >
+          <Text style={[styles.number, onImage ? styles.numberImage : styles.numberLight]}>
+            {String(value).padStart(2, "0")}
+          </Text>
+          <Text style={[styles.label, onImage ? styles.labelImage : styles.labelLight]}>
+            {label}
+          </Text>
         </View>
       ))}
     </View>
@@ -55,18 +64,15 @@ export function CountdownTimer({ endsAt, onExpire }: CountdownTimerProps) {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "flex-end", gap: 4 },
-  segment: { alignItems: "center", flexDirection: "row", gap: 4 },
-  block: {
-    backgroundColor: "#1C1C1E",
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    minWidth: 42,
-    alignItems: "center",
-  },
-  number: { color: "#FFFFFF", fontWeight: "700", fontVariant: ["tabular-nums"] },
-  label: { color: palette.textSecondary, fontSize: 10, position: "absolute", bottom: -14 },
-  colon: { color: palette.secondary, fontSize: 20, fontWeight: "700", marginBottom: 4 },
-  expired: { color: palette.textSecondary },
+  row: { flexDirection: "row", gap: 5 },
+  block: { borderRadius: 7, paddingHorizontal: 7, paddingVertical: 4, alignItems: "center", minWidth: 32 },
+  blockImage: { backgroundColor: "rgba(255,255,255,0.14)" },
+  blockLight: { backgroundColor: "#fff" },
+  number: { fontFamily: fonts.monoExtra, fontSize: 14, lineHeight: 17 },
+  numberImage: { color: "#fff" },
+  numberLight: { color: palette.textPrimary },
+  label: { fontFamily: fonts.mono, fontSize: 7, marginTop: 1 },
+  labelImage: { color: "#9DA2AE" },
+  labelLight: { color: "#B0859B" },
+  expired: { fontFamily: fonts.monoBold, fontSize: 12, color: palette.textSecondary },
 });

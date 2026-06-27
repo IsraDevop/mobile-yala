@@ -1,12 +1,22 @@
-import { ScrollView, StyleSheet, View } from "react-native";
-import { Chip } from "react-native-paper";
+import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
 import type { Category } from "../types";
-import { palette } from "../theme/theme";
+import { palette, fonts } from "../theme/theme";
 
 interface CategoryTabsProps {
   categories: Category[];
   selected: number | null;
   onSelect: (id: number | null) => void;
+}
+
+function Pill({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.chip, active ? styles.chipActive : styles.chipIdle]}
+    >
+      <Text style={[styles.text, active ? styles.textActive : styles.textIdle]}>{label}</Text>
+    </Pressable>
+  );
 }
 
 export function CategoryTabs({ categories, selected, onSelect }: CategoryTabsProps) {
@@ -17,27 +27,14 @@ export function CategoryTabs({ categories, selected, onSelect }: CategoryTabsPro
       style={styles.scroll}
       contentContainerStyle={styles.row}
     >
-      <View style={styles.chipWrapper}>
-        <Chip
-          selected={selected === null}
-          onPress={() => onSelect(null)}
-          style={[styles.chip, selected === null && styles.chipSelected]}
-          textStyle={[styles.chipText, selected === null && styles.chipTextSelected]}
-        >
-          Todo
-        </Chip>
-      </View>
+      <Pill label="Todo" active={selected === null} onPress={() => onSelect(null)} />
       {categories.map((cat) => (
-        <View key={cat.id} style={styles.chipWrapper}>
-          <Chip
-            selected={selected === cat.id}
-            onPress={() => onSelect(cat.id)}
-            style={[styles.chip, selected === cat.id && styles.chipSelected]}
-            textStyle={[styles.chipText, selected === cat.id && styles.chipTextSelected]}
-          >
-            {cat.name}
-          </Chip>
-        </View>
+        <Pill
+          key={cat.id}
+          label={cat.name}
+          active={selected === cat.id}
+          onPress={() => onSelect(cat.id)}
+        />
       ))}
     </ScrollView>
   );
@@ -45,10 +42,11 @@ export function CategoryTabs({ categories, selected, onSelect }: CategoryTabsPro
 
 const styles = StyleSheet.create({
   scroll: { flexGrow: 0 },
-  row: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 8, gap: 8 },
-  chipWrapper: {},
-  chip: { backgroundColor: "#F3F4F6", borderRadius: 20 },
-  chipSelected: { backgroundColor: palette.primary },
-  chipText: { color: palette.textPrimary, fontSize: 13 },
-  chipTextSelected: { color: "#fff" },
+  row: { flexDirection: "row", gap: 9, paddingRight: 20 },
+  chip: { borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8 },
+  chipActive: { backgroundColor: palette.primary },
+  chipIdle: { backgroundColor: palette.fill },
+  text: { fontSize: 13, fontFamily: fonts.bold },
+  textActive: { color: "#fff" },
+  textIdle: { color: "#5A5F6A" },
 });

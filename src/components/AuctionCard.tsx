@@ -1,10 +1,10 @@
 import { Image, Pressable, StyleSheet, View } from "react-native";
-import { Card, Chip, Text } from "react-native-paper";
+import { Text } from "react-native-paper";
 import type { Auction } from "../types";
 import { CountdownTimer } from "./CountdownTimer";
 import { PriceText } from "./PriceText";
 import { getAvatarInitials } from "../utils/formatters";
-import { palette } from "../theme/theme";
+import { palette, fonts } from "../theme/theme";
 
 interface AuctionCardProps {
   auction: Auction;
@@ -16,66 +16,96 @@ export function AuctionCard({ auction, onPress }: AuctionCardProps) {
   const imageUrl = listing?.imageUrls?.[0];
 
   return (
-    <Pressable onPress={onPress} style={styles.wrapper}>
-      <Card style={styles.card} elevation={2}>
-        <View style={styles.imageContainer}>
-          {imageUrl ? (
-            <Image source={{ uri: imageUrl }} style={styles.image} />
-          ) : (
-            <View style={[styles.image, styles.placeholder]}>
-              <Text style={styles.placeholderText}>
-                {getAvatarInitials(listing?.title ?? "YA")}
-              </Text>
-            </View>
-          )}
-          <Chip
-            style={styles.liveBadge}
-            textStyle={styles.liveBadgeText}
-            compact
-          >
-            ● En vivo
-          </Chip>
-        </View>
-
-        <Card.Content style={styles.content}>
-          <Text variant="titleSmall" numberOfLines={2} style={styles.title}>
-            {listing?.title ?? "Subasta"}
-          </Text>
-          <PriceText amount={auction.currentPrice} label="PUJA ACTUAL" size="small" />
-          <View style={styles.timerRow}>
-            <CountdownTimer endsAt={auction.endsAt} />
+    <Pressable onPress={onPress} style={styles.card}>
+      <View style={styles.imageContainer}>
+        {imageUrl ? (
+          <Image source={{ uri: imageUrl }} style={styles.image} />
+        ) : (
+          <View style={[styles.image, styles.placeholder]}>
+            <Text style={styles.placeholderText}>Yala</Text>
           </View>
-          {listing?.seller && (
-            <Text variant="labelSmall" style={styles.seller}>
-              {listing.seller.name}
-            </Text>
-          )}
-        </Card.Content>
-      </Card>
+        )}
+        <View style={styles.liveBadge}>
+          <View style={styles.liveDot} />
+          <Text style={styles.liveText}>En vivo</Text>
+        </View>
+        <View style={styles.timer}>
+          <CountdownTimer endsAt={auction.endsAt} variant="onImage" />
+        </View>
+      </View>
+
+      <View style={styles.content}>
+        <Text numberOfLines={2} style={styles.title}>
+          {listing?.title ?? "Subasta"}
+        </Text>
+        <View style={styles.priceRow}>
+          <PriceText amount={auction.currentPrice} label="PUJA ACTUAL" size="large" />
+        </View>
+        {listing?.seller && (
+          <View style={styles.sellerRow}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{getAvatarInitials(listing.seller.name)}</Text>
+            </View>
+            <Text style={styles.seller}>{listing.seller.name}</Text>
+          </View>
+        )}
+      </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: { flex: 1, margin: 6 },
-  card: { backgroundColor: "#fff", borderRadius: 12, overflow: "hidden" },
-  imageContainer: { position: "relative" },
-  image: { width: "100%", height: 140, resizeMode: "cover" },
-  placeholder: {
-    backgroundColor: "#1C1C1E",
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: palette.borderLight,
+    shadowColor: "#11142D",
+    shadowOpacity: 0.07,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
+  },
+  imageContainer: { position: "relative", height: 170, backgroundColor: palette.dark },
+  image: { width: "100%", height: 170, resizeMode: "cover" },
+  placeholder: { justifyContent: "center", alignItems: "center" },
+  placeholderText: { color: "#3A3D46", fontSize: 34, fontFamily: fonts.extrabold },
+  liveBadge: {
+    position: "absolute",
+    top: 12,
+    left: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#fff",
+    borderRadius: 999,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+  },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: palette.secondary },
+  liveText: { color: palette.secondary, fontSize: 11, fontFamily: fonts.bold },
+  timer: { position: "absolute", bottom: 12, right: 12 },
+  content: { padding: 16 },
+  title: { fontFamily: fonts.bold, fontSize: 15, color: palette.textPrimary, lineHeight: 19 },
+  priceRow: { marginTop: 12 },
+  sellerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#F2F3F6",
+  },
+  avatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: palette.avatarBg,
     justifyContent: "center",
     alignItems: "center",
   },
-  placeholderText: { color: "#fff", fontSize: 28, fontWeight: "700" },
-  liveBadge: {
-    position: "absolute",
-    top: 8,
-    left: 8,
-    backgroundColor: "#EA580C",
-  },
-  liveBadgeText: { color: "#fff", fontSize: 11, fontWeight: "700" },
-  content: { paddingVertical: 10 },
-  title: { fontWeight: "700", color: palette.textPrimary, marginBottom: 4 },
-  timerRow: { marginTop: 8, marginBottom: 4 },
-  seller: { color: palette.textSecondary, marginTop: 6 },
+  avatarText: { color: palette.primary, fontSize: 10, fontFamily: fonts.extrabold },
+  seller: { fontSize: 12, color: "#5A5F6A", fontFamily: fonts.semibold },
 });

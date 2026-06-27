@@ -11,5 +11,5 @@ export function Loader({ size = "large" }: { size?: "small" | "large" }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", alignItems: "center" },
+  container: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: palette.background },
 });

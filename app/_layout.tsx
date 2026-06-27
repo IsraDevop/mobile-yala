@@ -1,30 +1,63 @@
-import { useColorScheme } from "react-native";
+import { useEffect } from "react";
 import { PaperProvider } from "react-native-paper";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
 import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import {
+  useFonts,
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from "@expo-google-fonts/plus-jakarta-sans";
+import {
+  JetBrainsMono_500Medium,
+  JetBrainsMono_700Bold,
+  JetBrainsMono_800ExtraBold,
+} from "@expo-google-fonts/jetbrains-mono";
 import { AuthProvider } from "../src/context/AuthContext";
 import { ToastProvider } from "../src/context/ToastContext";
-import { lightTheme, darkTheme } from "../src/theme/theme";
+import { lightTheme } from "../src/theme/theme";
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
-  const scheme = useColorScheme();
-  const theme = scheme === "dark" ? darkTheme : lightTheme;
+  const [fontsLoaded] = useFonts({
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
+    JetBrainsMono_500Medium,
+    JetBrainsMono_700Bold,
+    JetBrainsMono_800ExtraBold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) SplashScreen.hideAsync().catch(() => {});
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <PaperProvider theme={theme}>
+      <PaperProvider theme={lightTheme}>
         <AuthProvider>
           <ToastProvider>
-            <StatusBar style={scheme === "dark" ? "light" : "dark"} />
-            <Stack screenOptions={{ headerShown: false }}>
+            <StatusBar style="dark" />
+            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#F5F6F8" } }}>
               <Stack.Screen name="(auth)" />
               <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="listing/[id]" options={{ headerShown: true, title: "Detalle" }} />
-              <Stack.Screen name="auction/[id]" options={{ headerShown: true, title: "Subasta en vivo" }} />
-              <Stack.Screen name="seller/[id]" options={{ headerShown: true, title: "Perfil de vendedor" }} />
-              <Stack.Screen name="create-auction" options={{ headerShown: true, title: "Crear subasta" }} />
-              <Stack.Screen name="camera" options={{ headerShown: true, title: "Cámara" }} />
+              <Stack.Screen name="listing/[id]" />
+              <Stack.Screen name="auction/[id]" />
+              <Stack.Screen name="seller/[id]" />
+              <Stack.Screen name="create-auction" />
+              <Stack.Screen name="camera" />
+              <Stack.Screen name="orders" />
+              <Stack.Screen name="order/[id]" />
+              <Stack.Screen name="edit-profile" />
             </Stack>
           </ToastProvider>
         </AuthProvider>

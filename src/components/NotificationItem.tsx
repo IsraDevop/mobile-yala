@@ -2,14 +2,14 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import { Ionicons } from "@expo/vector-icons";
 import type { Notification, NotificationType } from "../types";
-import { formatDateTime } from "../utils/formatters";
-import { palette } from "../theme/theme";
+import { timeAgo } from "../utils/formatters";
+import { palette, fonts } from "../theme/theme";
 
 const ICONS: Record<NotificationType, { name: keyof typeof Ionicons.glyphMap; color: string }> = {
-  BID_OUTBID: { name: "trending-up", color: palette.secondary },
-  AUCTION_WON: { name: "trophy", color: "#FBBF24" },
-  SALE_CONFIRMED: { name: "checkmark-circle", color: palette.success ?? "#16A34A" },
-  NEW_BID: { name: "cash", color: palette.primary },
+  BID_OUTBID: { name: "flash", color: palette.secondary },
+  AUCTION_WON: { name: "checkmark", color: palette.success },
+  SALE_CONFIRMED: { name: "checkmark", color: palette.primary },
+  NEW_BID: { name: "flash", color: palette.secondary },
 };
 
 interface NotificationItemProps {
@@ -18,58 +18,49 @@ interface NotificationItemProps {
 }
 
 export function NotificationItem({ notification, onPress }: NotificationItemProps) {
-  const icon = ICONS[notification.type];
+  const icon = ICONS[notification.type] ?? ICONS.NEW_BID;
+  const unread = !notification.isRead;
 
   return (
-    <Pressable
-      onPress={onPress}
-      style={[styles.row, !notification.isRead && styles.unread]}
-    >
-      <View style={[styles.iconContainer, { backgroundColor: icon.color + "20" }]}>
-        <Ionicons name={icon.name} size={22} color={icon.color} />
+    <Pressable onPress={onPress} style={[styles.card, unread ? styles.unread : styles.read]}>
+      <View style={[styles.icon, { backgroundColor: icon.color }]}>
+        <Ionicons name={icon.name} size={18} color="#fff" />
       </View>
       <View style={styles.content}>
-        <Text
-          variant="bodyMedium"
-          style={[styles.message, !notification.isRead && styles.boldMessage]}
-          numberOfLines={2}
-        >
+        <Text style={[styles.message, unread ? styles.messageUnread : styles.messageRead]} numberOfLines={3}>
           {notification.message}
         </Text>
-        <Text variant="labelSmall" style={styles.date}>
-          {formatDateTime(notification.createdAt)}
+        <Text style={styles.meta}>
+          {timeAgo(notification.createdAt)} · {notification.type}
         </Text>
       </View>
-      {!notification.isRead && <View style={styles.dot} />}
+      {unread && <View style={styles.dot} />}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  row: {
+  card: {
     flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#fff",
     gap: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 10,
   },
-  unread: { backgroundColor: "#F5F3FF" },
-  iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  unread: { backgroundColor: "#EEF0FE", borderColor: "#DCE0FC" },
+  read: { backgroundColor: "#fff", borderColor: palette.borderLight },
+  icon: {
+    width: 38,
+    height: 38,
+    borderRadius: 11,
     justifyContent: "center",
     alignItems: "center",
   },
   content: { flex: 1 },
-  message: { color: palette.textPrimary },
-  boldMessage: { fontWeight: "700" },
-  date: { color: palette.textSecondary, marginTop: 2 },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: palette.primary,
-  },
+  message: { fontSize: 13, lineHeight: 18 },
+  messageUnread: { color: palette.textPrimary, fontFamily: fonts.semibold },
+  messageRead: { color: "#5A5F6A", fontFamily: fonts.regular },
+  meta: { fontFamily: fonts.mono, fontSize: 10, color: palette.textTertiary, marginTop: 4 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: palette.primary, marginTop: 4 },
 });

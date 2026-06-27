@@ -9,12 +9,11 @@ import { Ionicons } from "@expo/vector-icons";
 
 interface Props {
   visible: boolean;
-  recipientId: number;
   orderId: number;
   onDismiss: () => void;
 }
 
-export function ReviewDialog({ visible, recipientId, orderId, onDismiss }: Props) {
+export function ReviewDialog({ visible, orderId, onDismiss }: Props) {
   const { showToast } = useToast();
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
@@ -23,7 +22,7 @@ export function ReviewDialog({ visible, recipientId, orderId, onDismiss }: Props
   async function handleSubmit() {
     try {
       setSubmitting(true);
-      await reviewService.create({ recipientId, orderId, rating, comment });
+      await reviewService.create({ orderId, rating, comment });
       showToast("¡Reseña enviada!", "success");
       onDismiss();
     } catch (err) {

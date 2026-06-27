@@ -1,5 +1,6 @@
-import { FlatList, StyleSheet, View } from "react-native";
-import { Button } from "react-native-paper";
+import { FlatList, Pressable, StyleSheet, View } from "react-native";
+import { Text } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePaginatedFetch } from "../../src/hooks/usePaginatedFetch";
 import { NotificationItem } from "../../src/components/NotificationItem";
 import { Loader } from "../../src/components/Loader";
@@ -9,9 +10,10 @@ import { useToast } from "../../src/context/ToastContext";
 import { notificationService } from "../../src/services/notificationService";
 import { getApiErrorMessage } from "../../src/utils/apiError";
 import type { Notification } from "../../src/types";
-import { palette } from "../../src/theme/theme";
+import { palette, fonts } from "../../src/theme/theme";
 
 export default function NotificationsScreen() {
+  const insets = useSafeAreaInsets();
   const { showToast } = useToast();
   const { items, loading, loadMore, refresh, error } =
     usePaginatedFetch<Notification>("/notifications");
@@ -28,53 +30,70 @@ export default function NotificationsScreen() {
   async function handleMarkAllRead() {
     try {
       await notificationService.markAllAsRead();
-      showToast("Todas las notificaciones marcadas como leídas", "success");
+      showToast("Todo marcado como leído", "success");
       refresh();
     } catch (err) {
       showToast(getApiErrorMessage(err), "error");
     }
   }
 
-  if (loading) return <Loader />;
-  if (error) return <ErrorView message={error} onRetry={refresh} />;
+  const hasUnread = items.some((n) => !n.isRead);
 
   return (
     <View style={styles.flex}>
-      {items.some((n) => !n.isRead) && (
-        <View style={styles.markAllRow}>
-          <Button compact onPress={handleMarkAllRead} textColor={palette.primary}>
-            Marcar todas como leídas
-          </Button>
-        </View>
-      )}
-      <FlatList
-        data={items}
-        keyExtractor={(n) => String(n.id)}
-        renderItem={({ item }) => (
-          <NotificationItem
-            notification={item}
-            onPress={() => !item.isRead && handleMarkAsRead(item.id)}
-          />
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <Text style={styles.title}>Notificaciones</Text>
+        {hasUnread && (
+          <Pressable onPress={handleMarkAllRead} hitSlop={8}>
+            <Text style={styles.markAll}>Marcar todas</Text>
+          </Pressable>
         )}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.3}
-        onRefresh={refresh}
-        refreshing={loading}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-        ListEmptyComponent={
-          <EmptyState
-            icon="notifications-outline"
-            title="Sin notificaciones"
-            description="Recibirás alertas cuando te hagan una puja o confirmen una venta"
-          />
-        }
-      />
+      </View>
+
+      {error ? (
+        <ErrorView message={error} onRetry={refresh} />
+      ) : loading && items.length === 0 ? (
+        <Loader />
+      ) : (
+        <FlatList
+          data={items}
+          keyExtractor={(n) => String(n.id)}
+          renderItem={({ item }) => (
+            <NotificationItem
+              notification={item}
+              onPress={() => !item.isRead && handleMarkAsRead(item.id)}
+            />
+          )}
+          contentContainerStyle={styles.list}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.3}
+          onRefresh={refresh}
+          refreshing={loading}
+          ListEmptyComponent={
+            <EmptyState
+              icon="notifications-outline"
+              title="Sin notificaciones"
+              description="Vas a recibir alertas cuando te hagan una puja o confirmen una venta."
+            />
+          }
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: palette.background },
-  markAllRow: { alignItems: "flex-end", paddingHorizontal: 16, paddingVertical: 4 },
-  separator: { height: 1, backgroundColor: palette.border, marginLeft: 72 },
+  header: {
+    backgroundColor: "#fff",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+  },
+  title: { fontFamily: fonts.extrabold, fontSize: 20, color: palette.textPrimary },
+  markAll: { fontFamily: fonts.bold, fontSize: 12, color: palette.primary },
+  list: { padding: 18, paddingBottom: 24 },
 });

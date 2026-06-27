@@ -1,19 +1,13 @@
-import { Pressable, StyleSheet, View } from "react-native";
-import { Card, Chip, Text } from "react-native-paper";
+import { Image, Pressable, StyleSheet, View } from "react-native";
+import { Text } from "react-native-paper";
 import type { Order, OrderStatus } from "../types";
-import { formatPrice, formatDate } from "../utils/formatters";
-import { palette } from "../theme/theme";
+import { formatPrice } from "../utils/formatters";
+import { palette, fonts } from "../theme/theme";
 
-const STATUS_LABELS: Record<OrderStatus, string> = {
-  PENDING: "Pendiente",
-  CONFIRMED: "Confirmada",
-  CANCELLED: "Cancelada",
-};
-
-const STATUS_COLORS: Record<OrderStatus, string> = {
-  PENDING: "#FCD34D",
-  CONFIRMED: "#16A34A",
-  CANCELLED: "#9CA3AF",
+const STATUS_STYLE: Record<OrderStatus, { bg: string; fg: string }> = {
+  PENDING: { bg: palette.warningBg, fg: palette.warning },
+  CONFIRMED: { bg: palette.successBg, fg: palette.success },
+  CANCELLED: { bg: "#F2F3F6", fg: "#8A8F98" },
 };
 
 interface OrderCardProps {
@@ -22,43 +16,48 @@ interface OrderCardProps {
 }
 
 export function OrderCard({ order, onPress }: OrderCardProps) {
+  const imageUrl = order.listing.imageUrls?.[0];
+  const s = STATUS_STYLE[order.status];
   return (
-    <Pressable onPress={onPress}>
-      <Card style={styles.card} elevation={1}>
-        <Card.Content>
-          <View style={styles.header}>
-            <Text variant="labelSmall" style={styles.id}>Orden #{order.id}</Text>
-            <Chip
-              compact
-              style={{ backgroundColor: STATUS_COLORS[order.status] + "30" }}
-              textStyle={{ color: STATUS_COLORS[order.status] }}
-            >
-              {STATUS_LABELS[order.status]}
-            </Chip>
-          </View>
-          <Text variant="titleSmall" numberOfLines={1} style={styles.title}>
-            {order.listing.title}
-          </Text>
-          <View style={styles.footer}>
-            <Text variant="titleMedium" style={styles.amount}>
-              {formatPrice(order.amount)}
-            </Text>
-            <Text variant="labelSmall" style={styles.date}>
-              {formatDate(order.createdAt)}
-            </Text>
-          </View>
-        </Card.Content>
-      </Card>
+    <Pressable onPress={onPress} style={[styles.card, order.status === "CANCELLED" && styles.dim]}>
+      {imageUrl ? (
+        <Image source={{ uri: imageUrl }} style={styles.thumb} />
+      ) : (
+        <View style={[styles.thumb, styles.placeholder]}>
+          <Text style={styles.placeholderText}>Yala</Text>
+        </View>
+      )}
+      <View style={styles.info}>
+        <Text numberOfLines={1} style={styles.title}>{order.listing.title}</Text>
+        <Text style={styles.amount}>{formatPrice(order.amount)}</Text>
+      </View>
+      <View style={[styles.badge, { backgroundColor: s.bg }]}>
+        <Text style={[styles.badgeText, { color: s.fg }]}>{order.status}</Text>
+      </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: "#fff", borderRadius: 12, marginHorizontal: 16, marginVertical: 6 },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
-  id: { color: palette.textSecondary },
-  title: { color: palette.textPrimary, fontWeight: "600", marginBottom: 8 },
-  footer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  amount: { color: palette.secondary, fontWeight: "800" },
-  date: { color: palette.textSecondary },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: palette.borderLight,
+    padding: 13,
+    marginHorizontal: 18,
+    marginBottom: 11,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  dim: { opacity: 0.7 },
+  thumb: { width: 58, height: 58, borderRadius: 13, backgroundColor: palette.dark },
+  placeholder: { justifyContent: "center", alignItems: "center" },
+  placeholderText: { color: "#3A3D46", fontSize: 13, fontFamily: fonts.extrabold },
+  info: { flex: 1 },
+  title: { fontFamily: fonts.bold, fontSize: 14, color: palette.textPrimary, lineHeight: 17 },
+  amount: { fontFamily: fonts.monoExtra, fontSize: 14, color: palette.textPrimary, marginTop: 4 },
+  badge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+  badgeText: { fontFamily: fonts.monoBold, fontSize: 10 },
 });

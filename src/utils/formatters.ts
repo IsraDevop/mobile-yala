@@ -35,6 +35,19 @@ export function getTimeLeft(endsAt: string): {
   return { days, hours, minutes, seconds, expired: false };
 }
 
+export function timeAgo(isoString: string): string {
+  const diff = Date.now() - new Date(isoString).getTime();
+  const min = Math.floor(diff / 60_000);
+  if (min < 1) return "ahora";
+  if (min < 60) return `hace ${min} min`;
+  const hrs = Math.floor(min / 60);
+  if (hrs < 24) return `hace ${hrs} h`;
+  const days = Math.floor(hrs / 24);
+  if (days === 1) return "ayer";
+  if (days < 7) return `hace ${days} días`;
+  return formatDate(isoString);
+}
+
 export function getAvatarInitials(name: string): string {
   return name
     .split(" ")

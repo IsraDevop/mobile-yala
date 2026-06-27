@@ -1,6 +1,6 @@
-import { StyleSheet } from "react-native";
-import { Searchbar } from "react-native-paper";
-import { palette } from "../theme/theme";
+import { StyleSheet, View, TextInput } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { palette, fonts } from "../theme/theme";
 
 interface SearchBarProps {
   value: string;
@@ -8,27 +8,41 @@ interface SearchBarProps {
   placeholder?: string;
 }
 
-export function SearchBar({ value, onChangeText, placeholder = "Buscar Charizard, Funko, comics..." }: SearchBarProps) {
+export function SearchBar({
+  value,
+  onChangeText,
+  placeholder = "Buscar Charizard, Funko, comics…",
+}: SearchBarProps) {
   return (
-    <Searchbar
-      placeholder={placeholder}
-      value={value}
-      onChangeText={onChangeText}
-      style={styles.bar}
-      inputStyle={styles.input}
-      elevation={0}
-    />
+    <View style={styles.bar}>
+      <Ionicons name="search" size={17} color="#9499A3" />
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor="#9499A3"
+        style={styles.input}
+        returnKeyType="search"
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   bar: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: palette.border,
-    marginHorizontal: 16,
-    marginVertical: 8,
+    height: 46,
+    backgroundColor: palette.fill,
+    borderRadius: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 14,
   },
-  input: { fontSize: 14 },
+  input: {
+    flex: 1,
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    color: palette.textPrimary,
+    padding: 0,
+  },
 });

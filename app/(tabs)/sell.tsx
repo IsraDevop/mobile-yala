@@ -1,8 +1,9 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { Button, Chip, SegmentedButtons, Text, TextInput } from "react-native-paper";
-import * as ImagePicker from "expo-image-picker";
+import { Text } from "react-native-paper";
 import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../src/context/AuthContext";
 import { useToast } from "../../src/context/ToastContext";
 import { useForm } from "../../src/hooks/useForm";
@@ -10,18 +11,21 @@ import { useFetch } from "../../src/hooks/useFetch";
 import { listingService } from "../../src/services/listingService";
 import { getApiErrorMessage } from "../../src/utils/apiError";
 import { isValidPrice } from "../../src/utils/validators";
-import type { Category } from "../../src/types";
-import { palette } from "../../src/theme/theme";
+import { pickImageFromGallery } from "../../src/utils/imageUtils";
+import { Field } from "../../src/components/Field";
+import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { EmptyState } from "../../src/components/EmptyState";
-import { Ionicons } from "@expo/vector-icons";
+import type { Category } from "../../src/types";
+import { palette, fonts } from "../../src/theme/theme";
 
 export default function SellScreen() {
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { showToast } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
-  const [uploadingPhotos, setUploadingPhotos] = useState(false);
-  const [createdListingId, setCreatedListingId] = useState<number | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
 
   const { data: categories } = useFetch<Category[]>("/categories");
 
@@ -32,56 +36,40 @@ export default function SellScreen() {
     fixedPrice: "",
     condition: "",
     categoryId: 0,
-    tags: "",
   });
 
   if (user?.role !== "SELLER" && user?.role !== "ADMIN") {
     return (
-      <EmptyState
-        icon="lock-closed-outline"
-        title="Solo vendedores"
-        description="Para publicar coleccionables necesitás una cuenta de vendedor verificado."
-      />
+      <View style={[styles.flex, { paddingTop: insets.top }]}>
+        <EmptyState
+          icon="lock-closed-outline"
+          title="Solo vendedores"
+          description="Para publicar coleccionables necesitás una cuenta de vendedor."
+        />
+      </View>
     );
   }
 
   async function pickImage() {
-    if (photos.length >= 5) {
-      showToast("Máximo 5 imágenes por publicación", "error");
-      return;
-    }
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      showToast("Permiso denegado. Actívalo en Configuración > Aplicaciones.", "error");
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images" as any],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) {
-      setPhotos((prev) => [...prev, result.assets[0].uri]);
-    }
+    if (photos.length >= 5) { showToast("Máximo 5 imágenes", "error"); return; }
+    const uri = await pickImageFromGallery();
+    if (uri) setPhotos((p) => [...p, uri]);
   }
 
-  async function takePhoto() {
-    if (photos.length >= 5) {
-      showToast("Máximo 5 imágenes por publicación", "error");
-      return;
-    }
-    router.push("/camera");
+  function addTag() {
+    const t = tagInput.trim().toLowerCase();
+    if (t && !tags.includes(t) && tags.length < 6) setTags((prev) => [...prev, t]);
+    setTagInput("");
   }
 
   async function handleSubmit() {
     const { title, description, mode, fixedPrice, condition, categoryId } = form.values;
     let valid = true;
-
     if (!title.trim()) { form.setError("title", "El título es obligatorio"); valid = false; }
     if (!condition.trim()) { form.setError("condition", "La condición es obligatoria"); valid = false; }
     if (categoryId === 0) { form.setError("categoryId", "Seleccioná una categoría"); valid = false; }
     if (mode === "FIXED" && !isValidPrice(Number(fixedPrice))) {
-      form.setError("fixedPrice", "Ingresá un precio válido");
-      valid = false;
+      form.setError("fixedPrice", "Ingresá un precio válido"); valid = false;
     }
     if (!valid) return;
 
@@ -94,192 +82,192 @@ export default function SellScreen() {
         fixedPrice: mode === "FIXED" ? Number(fixedPrice) : undefined,
         condition: condition.trim(),
         categoryId,
-        tags: form.values.tags
-          ? form.values.tags.split(",").map((t) => t.trim()).filter(Boolean)
-          : [],
+        tags,
       });
 
-      setCreatedListingId(listing.id);
-
       if (photos.length > 0) {
-        setUploadingPhotos(true);
         await Promise.all(
           photos.map((uri, i) =>
-            listingService.uploadImage(
-              listing.id,
-              {
-                uri,
-                name: `photo_${i}.jpg`,
-                type: "image/jpeg",
-              },
-              i
-            )
+            listingService.uploadImage(listing.id, { uri, name: `photo_${i}.jpg`, type: "image/jpeg" }, i)
           )
         );
-        setUploadingPhotos(false);
       }
 
-      showToast("¡Publicación creada con éxito!", "success");
-
-      if (mode === "AUCTION") {
-        router.push(`/create-auction?listingId=${listing.id}`);
-      } else {
-        router.push(`/listing/${listing.id}`);
-      }
+      showToast("¡Publicación creada!", "success");
+      if (mode === "AUCTION") router.push(`/create-auction?listingId=${listing.id}`);
+      else router.replace(`/listing/${listing.id}`);
     } catch (err) {
       showToast(getApiErrorMessage(err), "error");
     } finally {
       setSubmitting(false);
-      setUploadingPhotos(false);
     }
   }
 
-  return (
-    <ScrollView style={styles.flex} contentContainerStyle={styles.container}>
-      <Text variant="titleLarge" style={styles.sectionTitle}>Nueva publicación</Text>
+  const isAuction = form.values.mode === "AUCTION";
 
-      <View style={styles.photosRow}>
-        {photos.map((uri, i) => (
-          <Pressable
-            key={i}
-            onPress={() => setPhotos((prev) => prev.filter((_, idx) => idx !== i))}
-          >
-            <Image source={{ uri }} style={styles.photo} />
-            <View style={styles.removeIcon}>
-              <Ionicons name="close-circle" size={20} color={palette.error} />
-            </View>
-          </Pressable>
-        ))}
-        {photos.length < 5 && (
-          <View style={styles.photoActions}>
-            <Pressable style={styles.photoBtn} onPress={pickImage}>
-              <Ionicons name="images-outline" size={28} color={palette.primary} />
-              <Text variant="labelSmall" style={styles.photoBtnText}>Galería</Text>
-            </Pressable>
-            <Pressable style={styles.photoBtn} onPress={takePhoto}>
-              <Ionicons name="camera-outline" size={28} color={palette.primary} />
-              <Text variant="labelSmall" style={styles.photoBtnText}>Cámara</Text>
-            </Pressable>
-          </View>
-        )}
+  return (
+    <View style={styles.flex}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <Pressable style={styles.headerLeft} onPress={() => router.back()} hitSlop={8}>
+          <Ionicons name="close" size={22} color="#3A3D46" />
+          <Text style={styles.headerTitle}>Nueva publicación</Text>
+        </Pressable>
       </View>
 
-      <TextInput
-        label="Título *"
-        value={form.values.title}
-        onChangeText={(t) => form.setValue("title", t)}
-        error={!!form.errors.title}
-        mode="outlined"
-        style={styles.input}
-      />
-      {form.errors.title && <Text style={styles.fieldError}>{form.errors.title}</Text>}
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <View style={styles.photosRow}>
+          <Pressable style={styles.addPhoto} onPress={pickImage}>
+            <Ionicons name="add" size={22} color={palette.primary} />
+          </Pressable>
+          <Pressable style={styles.cameraPhoto} onPress={() => router.push("/camera")}>
+            <Ionicons name="camera-outline" size={22} color="#9499A3" />
+          </Pressable>
+          {photos.map((uri, i) => (
+            <Pressable key={i} onPress={() => setPhotos((prev) => prev.filter((_, idx) => idx !== i))}>
+              <Image source={{ uri }} style={styles.photo} />
+              <View style={styles.photoIndex}>
+                <Text style={styles.photoIndexText}>{i + 1}/5</Text>
+              </View>
+            </Pressable>
+          ))}
+        </View>
 
-      <TextInput
-        label="Descripción"
-        value={form.values.description}
-        onChangeText={(t) => form.setValue("description", t)}
-        mode="outlined"
-        multiline
-        numberOfLines={3}
-        style={styles.input}
-      />
+        <Field
+          label="Título"
+          placeholder="Charizard PSA 9 — 1ª edición"
+          value={form.values.title}
+          onChangeText={(t) => form.setValue("title", t)}
+          error={form.errors.title}
+        />
+        <Field
+          label="Descripción"
+          placeholder="Detalles del coleccionable…"
+          value={form.values.description}
+          onChangeText={(t) => form.setValue("description", t)}
+          multiline
+        />
+        <Field
+          label="Condición"
+          placeholder="PSA 9 — Mint"
+          value={form.values.condition}
+          onChangeText={(t) => form.setValue("condition", t)}
+          error={form.errors.condition}
+        />
 
-      <TextInput
-        label="Condición *"
-        value={form.values.condition}
-        onChangeText={(t) => form.setValue("condition", t)}
-        error={!!form.errors.condition}
-        mode="outlined"
-        placeholder="Ej: PSA 9 — Mint"
-        style={styles.input}
-      />
-      {form.errors.condition && <Text style={styles.fieldError}>{form.errors.condition}</Text>}
+        <Text style={styles.label}>Modo de venta</Text>
+        <View style={styles.toggleRow}>
+          <Pressable
+            style={[styles.toggle, !isAuction ? styles.toggleOn : styles.toggleOff]}
+            onPress={() => form.setValue("mode", "FIXED")}
+          >
+            <Text style={!isAuction ? styles.toggleOnText : styles.toggleOffText}>Precio fijo</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.toggle, isAuction ? styles.toggleOn : styles.toggleOff]}
+            onPress={() => form.setValue("mode", "AUCTION")}
+          >
+            <Text style={isAuction ? styles.toggleOnText : styles.toggleOffText}>Subasta</Text>
+          </Pressable>
+        </View>
 
-      <Text variant="labelLarge" style={styles.label}>Modo de venta *</Text>
-      <SegmentedButtons
-        value={form.values.mode}
-        onValueChange={(v) => form.setValue("mode", v as "FIXED" | "AUCTION")}
-        buttons={[
-          { value: "FIXED", label: "Precio fijo" },
-          { value: "AUCTION", label: "Subasta" },
-        ]}
-        style={styles.input}
-      />
-
-      {form.values.mode === "FIXED" && (
-        <>
-          <TextInput
-            label="Precio (S/.) *"
+        {!isAuction && (
+          <Field
+            label="Precio (S/.)"
+            placeholder="100"
             value={form.values.fixedPrice}
             onChangeText={(t) => form.setValue("fixedPrice", t)}
-            error={!!form.errors.fixedPrice}
-            mode="outlined"
+            error={form.errors.fixedPrice}
             keyboardType="decimal-pad"
-            style={styles.input}
           />
-          {form.errors.fixedPrice && <Text style={styles.fieldError}>{form.errors.fixedPrice}</Text>}
-        </>
-      )}
+        )}
 
-      <Text variant="labelLarge" style={styles.label}>Categoría *</Text>
-      <View style={styles.categoriesRow}>
-        {(categories ?? []).map((cat) => (
-          <Chip
-            key={cat.id}
-            selected={form.values.categoryId === cat.id}
-            onPress={() => form.setValue("categoryId", cat.id)}
-            style={form.values.categoryId === cat.id ? styles.catSelected : styles.cat}
-            textStyle={form.values.categoryId === cat.id ? { color: "#fff" } : {}}
-          >
-            {cat.name}
-          </Chip>
-        ))}
+        <Text style={styles.label}>Categoría</Text>
+        <View style={styles.pills}>
+          {(categories ?? []).map((cat) => {
+            const active = form.values.categoryId === cat.id;
+            return (
+              <Pressable
+                key={cat.id}
+                onPress={() => form.setValue("categoryId", cat.id)}
+                style={[styles.pill, active ? styles.pillOn : styles.pillOff]}
+              >
+                <Text style={active ? styles.pillOnText : styles.pillOffText}>{cat.name}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        {form.errors.categoryId ? <Text style={styles.fieldError}>{form.errors.categoryId}</Text> : null}
+
+        <Text style={[styles.label, { marginTop: 16 }]}>Tags</Text>
+        <View style={styles.pills}>
+          {tags.map((t) => (
+            <Pressable key={t} style={styles.tagOn} onPress={() => setTags((prev) => prev.filter((x) => x !== t))}>
+              <Text style={styles.tagOnText}>{t} ✕</Text>
+            </Pressable>
+          ))}
+          <View style={styles.tagInputWrap}>
+            <Field
+              value={tagInput}
+              onChangeText={setTagInput}
+              placeholder="+ tag"
+              onSubmitEditing={addTag}
+              returnKeyType="done"
+              autoCapitalize="none"
+              style={styles.tagInput}
+            />
+          </View>
+        </View>
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <PrimaryButton
+          label={isAuction ? "Crear y configurar subasta" : "Publicar"}
+          onPress={handleSubmit}
+          loading={submitting}
+        />
       </View>
-      {form.errors.categoryId && <Text style={styles.fieldError}>{form.errors.categoryId}</Text>}
-
-      <TextInput
-        label="Tags (separados por coma)"
-        value={form.values.tags}
-        onChangeText={(t) => form.setValue("tags", t)}
-        mode="outlined"
-        placeholder="holo, 1st-edition, mint"
-        style={styles.input}
-      />
-
-      <Button
-        mode="contained"
-        onPress={handleSubmit}
-        loading={submitting || uploadingPhotos}
-        disabled={submitting || uploadingPhotos}
-        style={styles.submitBtn}
-        contentStyle={styles.submitContent}
-      >
-        {form.values.mode === "AUCTION" ? "Crear y configurar subasta" : "Publicar"}
-      </Button>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: palette.background },
-  container: { padding: 16, gap: 4 },
-  sectionTitle: { fontWeight: "700", color: palette.textPrimary, marginBottom: 12 },
-  photosRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
-  photo: { width: 80, height: 80, borderRadius: 8 },
-  removeIcon: { position: "absolute", top: -8, right: -8 },
-  photoActions: { flexDirection: "row", gap: 8 },
-  photoBtn: {
-    width: 80, height: 80, borderRadius: 8, borderWidth: 2,
-    borderColor: palette.primary, borderStyle: "dashed",
-    justifyContent: "center", alignItems: "center",
+  header: { backgroundColor: palette.background, paddingHorizontal: 18, paddingBottom: 8 },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
+  headerTitle: { fontFamily: fonts.bold, fontSize: 15, color: "#3A3D46" },
+  content: { padding: 18, paddingBottom: 20 },
+  photosRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
+  addPhoto: {
+    width: 72, height: 72, borderRadius: 14, borderWidth: 2, borderStyle: "dashed",
+    borderColor: "#C7CBD4", backgroundColor: "#fff", justifyContent: "center", alignItems: "center",
   },
-  photoBtnText: { color: palette.primary, fontSize: 10, marginTop: 2 },
-  input: { marginBottom: 4 },
-  label: { color: palette.textSecondary, marginBottom: 8 },
-  fieldError: { color: palette.error, fontSize: 12, marginBottom: 4 },
-  categoriesRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 },
-  cat: { backgroundColor: "#F3F4F6" },
-  catSelected: { backgroundColor: palette.primary },
-  submitBtn: { marginTop: 16, backgroundColor: palette.primary },
-  submitContent: { paddingVertical: 6 },
+  cameraPhoto: {
+    width: 72, height: 72, borderRadius: 14, borderWidth: 2, borderStyle: "dashed",
+    borderColor: "#C7CBD4", backgroundColor: "#fff", justifyContent: "center", alignItems: "center",
+  },
+  photo: { width: 72, height: 72, borderRadius: 14 },
+  photoIndex: {
+    position: "absolute", bottom: 4, right: 4, backgroundColor: "rgba(0,0,0,0.6)",
+    borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1,
+  },
+  photoIndexText: { color: "#fff", fontFamily: fonts.mono, fontSize: 9 },
+  label: { fontFamily: fonts.bold, fontSize: 13, color: "#3A3D46", marginBottom: 9 },
+  fieldError: { fontFamily: fonts.medium, fontSize: 12, color: palette.error, marginTop: 5 },
+  toggleRow: { flexDirection: "row", gap: 10, marginBottom: 16 },
+  toggle: { flex: 1, height: 46, borderRadius: 13, borderWidth: 1.5, justifyContent: "center", alignItems: "center" },
+  toggleOn: { borderColor: palette.primary, backgroundColor: palette.primaryContainer },
+  toggleOff: { borderColor: palette.border },
+  toggleOnText: { fontFamily: fonts.extrabold, fontSize: 13, color: palette.primary },
+  toggleOffText: { fontFamily: fonts.bold, fontSize: 13, color: "#7C808B" },
+  pills: { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" },
+  pill: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
+  pillOn: { backgroundColor: palette.primary },
+  pillOff: { backgroundColor: palette.fill },
+  pillOnText: { fontFamily: fonts.bold, fontSize: 12, color: "#fff" },
+  pillOffText: { fontFamily: fonts.bold, fontSize: 12, color: "#5A5F6A" },
+  tagOn: { backgroundColor: palette.primaryContainer, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7 },
+  tagOnText: { fontFamily: fonts.mono, fontSize: 12, color: palette.primary },
+  tagInputWrap: { width: 110 },
+  tagInput: { paddingVertical: 6 },
+  footer: { padding: 18, backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: palette.borderLight },
 });

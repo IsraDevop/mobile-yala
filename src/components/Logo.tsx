@@ -1,7 +1,7 @@
 import { Image, StyleSheet } from "react-native";
 
 const WORDMARK = require("../../assets/yala-logo.png"); // 939x334 — mark + wordmark
-const MARK = require("../../assets/yala-mark.png"); //      338x330 — mark only
+const MARK = require("../../assets/yala-mark.png"); //      331x331 — mark only
 
 interface Props {
   size?: number;
@@ -11,7 +11,7 @@ interface Props {
 export function Logo({ size = 24, showWordmark = true }: Props) {
   const height = size * 1.5;
   const source = showWordmark ? WORDMARK : MARK;
-  const ratio = showWordmark ? 939 / 334 : 338 / 330;
+  const ratio = showWordmark ? 939 / 334 : 331 / 331;
   return (
     <Image
       source={source}

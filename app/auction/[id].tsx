@@ -135,7 +135,7 @@ export default function AuctionDetailScreen() {
             </>
           ) : (
             <Pressable style={styles.loginBtn} onPress={() => router.push("/(auth)/login")}>
-              <Text style={styles.loginText}>Ingresá para pujar</Text>
+              <Text style={styles.loginText}>Ingresa para pujar</Text>
             </Pressable>
           )}
         </View>

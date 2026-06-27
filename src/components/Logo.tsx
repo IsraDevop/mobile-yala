@@ -1,7 +1,7 @@
-import { StyleSheet, View } from "react-native";
-import { Text } from "react-native-paper";
-import { Ionicons } from "@expo/vector-icons";
-import { palette, fonts } from "../theme/theme";
+import { Image, StyleSheet } from "react-native";
+
+const WORDMARK = require("../../assets/yala-logo.png"); // 939x334 — mark + wordmark
+const MARK = require("../../assets/yala-mark.png"); //      338x330 — mark only
 
 interface Props {
   size?: number;
@@ -9,34 +9,18 @@ interface Props {
 }
 
 export function Logo({ size = 24, showWordmark = true }: Props) {
-  const box = size * 1.35;
+  const height = size * 1.5;
+  const source = showWordmark ? WORDMARK : MARK;
+  const ratio = showWordmark ? 939 / 334 : 338 / 330;
   return (
-    <View style={styles.row}>
-      <View
-        style={[
-          styles.mark,
-          { width: box, height: box, borderRadius: box * 0.32 },
-        ]}
-      >
-        <Ionicons name="arrow-up" size={box * 0.62} color="#fff" />
-      </View>
-      {showWordmark && (
-        <Text
-          style={[styles.word, { fontSize: size, fontFamily: fonts.extrabold }]}
-        >
-          Yala
-        </Text>
-      )}
-    </View>
+    <Image
+      source={source}
+      style={[styles.logo, { height, width: height * ratio }]}
+      resizeMode="contain"
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: 8 },
-  mark: {
-    backgroundColor: palette.primary,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  word: { color: palette.textPrimary, letterSpacing: -0.5 },
+  logo: { alignSelf: "flex-start" },
 });

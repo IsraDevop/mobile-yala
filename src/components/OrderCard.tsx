@@ -16,7 +16,7 @@ interface OrderCardProps {
 }
 
 export function OrderCard({ order, onPress }: OrderCardProps) {
-  const imageUrl = order.listing.imageUrls?.[0];
+  const imageUrl = order.listing?.imageUrls?.[0];
   const s = STATUS_STYLE[order.status];
   return (
     <Pressable onPress={onPress} style={[styles.card, order.status === "CANCELLED" && styles.dim]}>
@@ -28,7 +28,7 @@ export function OrderCard({ order, onPress }: OrderCardProps) {
         </View>
       )}
       <View style={styles.info}>
-        <Text numberOfLines={1} style={styles.title}>{order.listing.title}</Text>
+        <Text numberOfLines={1} style={styles.title}>{order.listing?.title ?? order.itemTitle ?? `Orden #${order.id}`}</Text>
         <Text style={styles.amount}>{formatPrice(order.amount)}</Text>
       </View>
       <View style={[styles.badge, { backgroundColor: s.bg }]}>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { FlatList, Pressable, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { usePaginatedFetch } from "../src/hooks/usePaginatedFetch";
 import { OrderCard } from "../src/components/OrderCard";
@@ -29,6 +30,11 @@ export default function OrdersScreen() {
   return (
     <View style={styles.flex}>
       <ScreenHeader title="Mis órdenes" />
+      <Pressable style={styles.pendingBanner} onPress={() => router.push("/pending-payments")}>
+        <Ionicons name="wallet-outline" size={18} color={palette.secondary} />
+        <Text style={styles.pendingText}>Pendientes de pago (48 h)</Text>
+        <Ionicons name="chevron-forward" size={16} color={palette.secondary} />
+      </Pressable>
       <View style={styles.filters}>
         {FILTERS.map((f) => {
           const active = filter === f.key;
@@ -78,6 +84,18 @@ export default function OrdersScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: palette.background },
+  pendingBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginHorizontal: 18,
+    marginTop: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: "#FDEEE7",
+  },
+  pendingText: { flex: 1, fontFamily: fonts.bold, fontSize: 13, color: palette.secondary },
   filters: { flexDirection: "row", gap: 8, paddingHorizontal: 18, paddingTop: 4, paddingBottom: 12 },
   pill: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 },
   pillActive: { backgroundColor: palette.primary },

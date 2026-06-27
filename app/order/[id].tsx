@@ -85,7 +85,7 @@ export default function OrderDetailScreen() {
   const s = STATUS_STYLE[order.status];
   const isSeller = order.seller.id === user?.id;
   const isBuyer = order.buyer.id === user?.id;
-  const image = order.listing.imageUrls?.[0];
+  const image = order.listing?.imageUrls?.[0];
 
   return (
     <View style={styles.flex}>
@@ -107,7 +107,7 @@ export default function OrderDetailScreen() {
             </View>
           )}
           <View style={styles.productInfo}>
-            <Text numberOfLines={2} style={styles.productTitle}>{order.listing.title}</Text>
+            <Text numberOfLines={2} style={styles.productTitle}>{order.listing?.title ?? order.itemTitle ?? `Orden #${order.id}`}</Text>
             <Text style={styles.productSeller}>Vendedor · {order.seller.name}</Text>
           </View>
         </View>

@@ -82,9 +82,50 @@ export interface Order {
   amount: number;
   status: OrderStatus;
   createdAt: string;
-  listing: Listing;
+  paymentDeadline: string | null;
+  itemTitle: string | null;
+  listing: Listing | null;
   buyer: User;
   seller: User;
+}
+
+// --- Live streaming ---
+export type LiveStatus = "LIVE" | "ENDED";
+export type FlashAuctionStatus = "ACTIVE" | "SOLD" | "DESERTED";
+
+export interface LiveSummary {
+  id: number;
+  title: string;
+  status: LiveStatus;
+  coverImageUrl: string | null;
+  sellerName: string | null;
+  sellerId: number | null;
+  startedAt: string;
+}
+
+export interface FlashAuction {
+  id: number;
+  liveStreamId: number;
+  title: string;
+  basePrice: number;
+  bidIncrement: number;
+  currentPrice: number | null;
+  status: FlashAuctionStatus;
+  winnerName: string | null;
+  totalBids: number;
+  startedAt: string;
+}
+
+export interface LiveDetail {
+  id: number;
+  title: string;
+  status: LiveStatus;
+  roomName: string;
+  coverImageUrl: string | null;
+  startedAt: string;
+  endedAt: string | null;
+  seller: User | null;
+  activeAuction: FlashAuction | null;
 }
 
 export interface Review {

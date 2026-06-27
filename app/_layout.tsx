@@ -52,10 +52,12 @@ export default function RootLayout() {
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="listing/[id]" />
               <Stack.Screen name="auction/[id]" />
+              <Stack.Screen name="live/[id]" />
               <Stack.Screen name="seller/[id]" />
               <Stack.Screen name="create-auction" />
               <Stack.Screen name="camera" />
               <Stack.Screen name="orders" />
+              <Stack.Screen name="pending-payments" />
               <Stack.Screen name="order/[id]" />
               <Stack.Screen name="edit-profile" />
             </Stack>

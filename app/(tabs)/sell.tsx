@@ -67,9 +67,9 @@ export default function SellScreen() {
     let valid = true;
     if (!title.trim()) { form.setError("title", "El título es obligatorio"); valid = false; }
     if (!condition.trim()) { form.setError("condition", "La condición es obligatoria"); valid = false; }
-    if (categoryId === 0) { form.setError("categoryId", "Seleccioná una categoría"); valid = false; }
+    if (categoryId === 0) { form.setError("categoryId", "Selecciona una categoría"); valid = false; }
     if (mode === "FIXED" && !isValidPrice(Number(fixedPrice))) {
-      form.setError("fixedPrice", "Ingresá un precio válido"); valid = false;
+      form.setError("fixedPrice", "Ingresa un precio válido"); valid = false;
     }
     if (!valid) return;
 

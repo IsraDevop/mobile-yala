@@ -84,7 +84,7 @@ export default function LoginScreen() {
         <View style={styles.logo}>
           <Logo size={30} />
           <Text style={styles.tagline}>
-            {tab === "login" ? "Subastas de coleccionables geek." : "Creá tu cuenta en segundos."}
+            {tab === "login" ? "Subastas de coleccionables geek." : "Crea tu cuenta en segundos."}
           </Text>
         </View>
 
@@ -104,7 +104,7 @@ export default function LoginScreen() {
             <>
               <Field
                 label="Email"
-                placeholder="vos@email.com"
+                placeholder="tu@email.com"
                 value={loginForm.values.email}
                 onChangeText={(t) => loginForm.setValue("email", t)}
                 error={loginForm.errors.email}
@@ -125,7 +125,7 @@ export default function LoginScreen() {
               </View>
               <Pressable onPress={() => setTab("register")} style={styles.linkRow}>
                 <Text style={styles.linkMuted}>
-                  ¿No tenés cuenta? <Text style={styles.link}>Creá una</Text>
+                  ¿No tienes cuenta? <Text style={styles.link}>Crea una</Text>
                 </Text>
               </Pressable>
             </>
@@ -140,7 +140,7 @@ export default function LoginScreen() {
               />
               <Field
                 label="Email"
-                placeholder="vos@email.com"
+                placeholder="tu@email.com"
                 value={registerForm.values.email}
                 onChangeText={(t) => registerForm.setValue("email", t)}
                 error={registerForm.errors.email}

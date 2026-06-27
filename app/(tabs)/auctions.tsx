@@ -41,7 +41,7 @@ export default function AuctionsScreen() {
             <EmptyState
               icon="flash-outline"
               title="No hay subastas activas"
-              description="Volvé pronto para descubrir nuevas subastas en vivo."
+              description="Vuelve pronto para descubrir nuevas subastas en vivo."
             />
           }
           showsVerticalScrollIndicator={false}

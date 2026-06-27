@@ -124,7 +124,7 @@ export default function HomeScreen() {
             <EmptyState
               icon="search-outline"
               title="Sin resultados"
-              description="Probá con otro término o cambiá los filtros."
+              description="Prueba con otro término o cambia los filtros."
               ctaLabel="Limpiar búsqueda"
               onCta={() => { setSearch(""); setSelectedCategory(null); }}
             />

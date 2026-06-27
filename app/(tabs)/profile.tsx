@@ -106,7 +106,7 @@ export default function ProfileScreen() {
           <EmptyState
             icon="cube-outline"
             title="Sin publicaciones"
-            description="Todavía no tenés publicaciones activas."
+            description="Todavía no tienes publicaciones activas."
             ctaLabel={me.role === "SELLER" ? "Crear publicación" : undefined}
             onCta={me.role === "SELLER" ? () => router.push("/(tabs)/sell") : undefined}
           />

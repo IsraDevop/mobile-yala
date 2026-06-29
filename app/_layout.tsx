@@ -4,6 +4,13 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import { isLiveKitAvailable } from "../src/utils/liveKit";
+
+if (isLiveKitAvailable()) {
+  try {
+    require("@livekit/react-native").registerGlobals();
+  } catch {}
+}
 import {
   useFonts,
   PlusJakartaSans_400Regular,
@@ -60,6 +67,9 @@ export default function RootLayout() {
               <Stack.Screen name="pending-payments" />
               <Stack.Screen name="order/[id]" />
               <Stack.Screen name="edit-profile" />
+              <Stack.Screen name="my-sales" />
+              <Stack.Screen name="seller/apply" />
+              <Stack.Screen name="seller/go-live" />
             </Stack>
           </ToastProvider>
         </AuthProvider>

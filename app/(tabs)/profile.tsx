@@ -91,13 +91,22 @@ export default function ProfileScreen() {
       </Pressable>
 
       {me.isVerifiedSeller || me.role === "SELLER" ? (
-        <Pressable style={styles.ordersRow} onPress={() => router.push("/my-sales")}>
-          <View style={styles.ordersIcon}>
-            <Ionicons name="storefront-outline" size={18} color={palette.primary} />
-          </View>
-          <Text style={styles.ordersText}>Mis ventas / Ganadores</Text>
-          <Ionicons name="chevron-forward" size={18} color="#9499A3" />
-        </Pressable>
+        <>
+          <Pressable style={styles.ordersRow} onPress={() => router.push("/my-sales")}>
+            <View style={styles.ordersIcon}>
+              <Ionicons name="storefront-outline" size={18} color={palette.primary} />
+            </View>
+            <Text style={styles.ordersText}>Mis ventas / Ganadores</Text>
+            <Ionicons name="chevron-forward" size={18} color="#9499A3" />
+          </Pressable>
+          <Pressable style={styles.ordersRow} onPress={() => router.push("/seller/go-live")}>
+            <View style={[styles.ordersIcon, styles.liveIcon]}>
+              <Ionicons name="radio-outline" size={18} color={palette.secondary} />
+            </View>
+            <Text style={styles.ordersText}>Salir en vivo</Text>
+            <Ionicons name="chevron-forward" size={18} color="#9499A3" />
+          </Pressable>
+        </>
       ) : (
         <Pressable style={styles.sellerCta} onPress={() => router.push("/seller/apply")}>
           <View style={styles.ordersIcon}>
@@ -232,6 +241,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   ordersText: { flex: 1, fontFamily: fonts.bold, fontSize: 14, color: palette.textPrimary },
+  liveIcon: { backgroundColor: palette.secondaryBg },
   sellerCta: {
     flexDirection: "row",
     alignItems: "center",

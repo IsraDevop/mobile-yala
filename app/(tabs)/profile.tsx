@@ -90,7 +90,15 @@ export default function ProfileScreen() {
         <Ionicons name="chevron-forward" size={18} color="#9499A3" />
       </Pressable>
 
-      {!me.isVerifiedSeller && me.role !== "SELLER" && (
+      {me.isVerifiedSeller || me.role === "SELLER" ? (
+        <Pressable style={styles.ordersRow} onPress={() => router.push("/my-sales")}>
+          <View style={styles.ordersIcon}>
+            <Ionicons name="storefront-outline" size={18} color={palette.primary} />
+          </View>
+          <Text style={styles.ordersText}>Mis ventas / Ganadores</Text>
+          <Ionicons name="chevron-forward" size={18} color="#9499A3" />
+        </Pressable>
+      ) : (
         <Pressable style={styles.sellerCta} onPress={() => router.push("/seller/apply")}>
           <View style={styles.ordersIcon}>
             <Ionicons name="business-outline" size={18} color={palette.primary} />

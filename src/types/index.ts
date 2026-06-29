@@ -16,7 +16,9 @@ export interface User {
   avatarUrl: string | null;
   reputation: number;
   isVerifiedSeller: boolean;
+  isIdentityVerified: boolean;
   role: UserRole;
+  dni?: string;
 }
 
 export interface Category {
@@ -159,10 +161,12 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
-  name: string;
+  dni: string;
   email: string;
   password: string;
-  role?: UserRole;
+  nombres: string;
+  apellidoPaterno: string;
+  apellidoMaterno: string;
 }
 
 export interface AuthResponse {

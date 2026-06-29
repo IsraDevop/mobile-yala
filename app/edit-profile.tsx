@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../src/context/AuthContext";
 import { useToast } from "../src/context/ToastContext";
 import { useFetch } from "../src/hooks/useFetch";
@@ -18,6 +19,7 @@ import { palette, fonts } from "../src/theme/theme";
 import type { User } from "../src/types";
 
 export default function EditProfileScreen() {
+  const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
   const { showToast } = useToast();
   const [saving, setSaving] = useState(false);
@@ -71,7 +73,8 @@ export default function EditProfileScreen() {
           </Pressable>
         }
       />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.avatarSection}>
           <Pressable onPress={handlePickAvatar}>
             <View style={styles.avatar}>
@@ -105,9 +108,10 @@ export default function EditProfileScreen() {
           <Ionicons name="log-out-outline" size={18} color={palette.error} />
           <Text style={styles.logoutText}>Cerrar sesión</Text>
         </Pressable>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom || 18 }]}>
         <PrimaryButton label="Guardar cambios" onPress={handleSave} loading={saving} />
       </View>
     </View>

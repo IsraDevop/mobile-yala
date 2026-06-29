@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import { router, useLocalSearchParams } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useToast } from "../src/context/ToastContext";
 import { useForm } from "../src/hooks/useForm";
 import { auctionService } from "../src/services/auctionService";
@@ -12,6 +13,7 @@ import { PrimaryButton } from "../src/components/PrimaryButton";
 import { palette, fonts } from "../src/theme/theme";
 
 export default function CreateAuctionScreen() {
+  const insets = useSafeAreaInsets();
   const { listingId } = useLocalSearchParams<{ listingId: string }>();
   const { showToast } = useToast();
   const [submitting, setSubmitting] = useState(false);
@@ -47,8 +49,9 @@ export default function CreateAuctionScreen() {
   return (
     <View style={styles.flex}>
       <ScreenHeader title="Configurar subasta" />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.subtitle}>Definí el precio inicial y cuándo termina tu subasta.</Text>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <Text style={styles.subtitle}>Define el precio inicial y cuándo termina tu subasta.</Text>
         <Field
           label="Precio inicial (S/.)"
           placeholder="100"
@@ -66,8 +69,9 @@ export default function CreateAuctionScreen() {
           autoCapitalize="none"
         />
         <Text style={styles.hint}>Formato: YYYY-MM-DDTHH:mm</Text>
-      </ScrollView>
-      <View style={styles.footer}>
+        </ScrollView>
+      </KeyboardAvoidingView>
+      <View style={[styles.footer, { paddingBottom: insets.bottom || 18 }]}>
         <PrimaryButton label="Iniciar subasta" icon="flash" onPress={handleSubmit} loading={submitting} />
       </View>
     </View>

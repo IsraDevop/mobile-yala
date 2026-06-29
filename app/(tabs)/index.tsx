@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { FlatList, Pressable, StyleSheet, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -28,9 +28,9 @@ export default function HomeScreen() {
   const debouncedSearch = useDebounce(search, 400);
 
   const { data: categories } = useFetch<Category[]>("/categories");
-  const { data: auctionsPage } = useFetch<{ content: Auction[] }>("/auctions?page=0&size=10");
+  const { data: auctionsPage, refetch: refetchAuctions } = useFetch<{ content: Auction[] }>("/auctions?page=0&size=10");
   const auctions = auctionsPage?.content ?? [];
-  const { data: livesPage } = useFetch<{ content: LiveSummary[] }>("/live?page=0&size=12");
+  const { data: livesPage, refetch: refetchLives } = useFetch<{ content: LiveSummary[] }>("/live?page=0&size=12");
   const lives = livesPage?.content ?? [];
 
   const listingParams = new URLSearchParams({ page: "0", size: "20" });
@@ -48,6 +48,12 @@ export default function HomeScreen() {
     setSelectedCategory(id);
     setSearch("");
   }, []);
+
+  const onRefresh = useCallback(() => {
+    refetch();
+    refetchAuctions();
+    refetchLives();
+  }, [refetch, refetchAuctions, refetchLives]);
 
   const ListHeader = (
     <View>
@@ -146,6 +152,9 @@ export default function HomeScreen() {
           )}
           columnWrapperStyle={styles.column}
           contentContainerStyle={styles.grid}
+          refreshControl={
+            <RefreshControl refreshing={loading} onRefresh={onRefresh} tintColor={palette.primary} />
+          }
           ListEmptyComponent={
             <EmptyState
               icon="search-outline"

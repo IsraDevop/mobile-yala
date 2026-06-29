@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { tokenStorage } from "../api/storage";
+import { authService } from "../services/authService";
 import type { AuthResponse, UserRole } from "../types";
 
 interface AuthUser {
@@ -14,6 +15,9 @@ interface AuthUser {
   name: string;
   email: string;
   role: UserRole;
+  isVerifiedSeller: boolean;
+  isIdentityVerified: boolean;
+  avatarUrl: string | null;
 }
 
 interface AuthState {
@@ -22,6 +26,7 @@ interface AuthState {
   isLoading: boolean;
   login: (data: AuthResponse) => Promise<void>;
   logout: () => Promise<void>;
+  refreshSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
@@ -30,24 +35,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Rehidratación: al montar lee el token desde SecureStore → la sesión sobrevive al cerrar y abrir la app
+  function mapProfile(profile: Awaited<ReturnType<typeof authService.getCurrentUser>>): AuthUser {
+    return {
+      id: profile.id,
+      name: profile.name,
+      email: profile.email,
+      role: profile.role,
+      isVerifiedSeller: profile.isVerifiedSeller ?? false,
+      isIdentityVerified: profile.isIdentityVerified ?? false,
+      avatarUrl: profile.avatarUrl ?? null,
+    };
+  }
+
   useEffect(() => {
     (async () => {
       try {
         const token = await tokenStorage.getAccessToken();
         if (!token) return;
-        // Decode JWT payload to restore user identity without an extra network call
         const payload = JSON.parse(atob(token.split(".")[1]));
-        if (payload.exp * 1000 > Date.now()) {
-          setUser({
-            id: payload.userId ?? payload.sub,
-            name: payload.name ?? "",
-            email: payload.email ?? payload.sub,
-            role: payload.role ?? "USER",
-          });
-        } else {
+        if (payload.exp * 1000 <= Date.now()) {
           await tokenStorage.clearTokens();
+          return;
         }
+        const profile = await authService.getCurrentUser();
+        setUser(mapProfile(profile));
+      } catch {
+        await tokenStorage.clearTokens();
       } finally {
         setIsLoading(false);
       }
@@ -56,17 +69,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (data: AuthResponse) => {
     await tokenStorage.setTokens(data.accessToken, data.refreshToken);
-    setUser({
-      id: data.userId,
-      name: data.name,
-      email: data.email,
-      role: data.role,
-    });
+    const profile = await authService.getCurrentUser();
+    setUser(mapProfile(profile));
   }, []);
 
   const logout = useCallback(async () => {
     await tokenStorage.clearTokens();
     setUser(null);
+  }, []);
+
+  const refreshSession = useCallback(async () => {
+    try {
+      const refreshToken = await tokenStorage.getRefreshToken();
+      if (!refreshToken) return;
+      const { data } = await import("axios").then((m) =>
+        m.default.post<AuthResponse>(
+          `${process.env.EXPO_PUBLIC_API_URL ?? "https://yala.dpdns.org/api/v1"}/auth/refresh-token`,
+          { refreshToken }
+        )
+      );
+      await tokenStorage.setTokens(data.accessToken, data.refreshToken);
+      const profile = await authService.getCurrentUser();
+      setUser(mapProfile(profile));
+    } catch {
+      // Si falla el refresh la sesión sigue activa; se reintentará al siguiente uso
+    }
   }, []);
 
   return (
@@ -77,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         login,
         logout,
+        refreshSession,
       }}
     >
       {children}

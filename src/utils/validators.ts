@@ -17,3 +17,7 @@ export function isValidPrice(price: number): boolean {
 export function isValidName(name: string): boolean {
   return name.trim().length >= 2;
 }
+
+export function isValidDni(dni: string): boolean {
+  return /^\d{8}$/.test(dni);
+}

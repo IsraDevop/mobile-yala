@@ -1,5 +1,5 @@
 import { api } from "../api/client";
-import type { Listing, PageResponse, User } from "../types";
+import type { Listing, PageResponse, SellerStoreInfo, User } from "../types";
 
 export const userService = {
   getById: (id: number) =>
@@ -11,4 +11,7 @@ export const userService = {
         `/users/${id}/listings?page=${page}&size=${size}`
       )
       .then((r) => r.data),
+
+  getStore: (id: number) =>
+    api.get<SellerStoreInfo>(`/users/${id}/store`).then((r) => r.data),
 };

@@ -13,7 +13,7 @@ import { Loader } from "../../src/components/Loader";
 import { ErrorView } from "../../src/components/ErrorView";
 import { EmptyState } from "../../src/components/EmptyState";
 import { getAvatarInitials } from "../../src/utils/formatters";
-import type { Listing, Review, User } from "../../src/types";
+import type { Listing, Review, SellerStoreInfo, User } from "../../src/types";
 import { palette, fonts } from "../../src/theme/theme";
 
 export default function SellerProfileScreen() {
@@ -23,6 +23,9 @@ export default function SellerProfileScreen() {
   const { data: seller, loading, error } = useFetch<User>(id ? `/users/${id}` : null);
   const { items: listings } = usePaginatedFetch<Listing>(id ? `/users/${id}/listings` : "");
   const { items: reviews } = usePaginatedFetch<Review>(id ? `/reviews/user/${id}` : "");
+  const { data: storeInfo } = useFetch<SellerStoreInfo>(
+    id && seller?.isVerifiedSeller ? `/users/${id}/store` : null
+  );
 
   if (loading) return (<View style={styles.flex}><ScreenHeader title="Volver" /><Loader /></View>);
   if (error || !seller) return (<View style={styles.flex}><ScreenHeader title="Volver" /><ErrorView message={error ?? "No encontrado"} /></View>);
@@ -68,6 +71,26 @@ export default function SellerProfileScreen() {
               <Stat value={String(listings.length)} label="Publicaciones" border />
               <Stat value={String(reviews.length)} label="Reseñas" />
             </View>
+
+            {storeInfo && (
+              <View style={styles.storeCard}>
+                <View style={styles.storeRow}>
+                  <Ionicons name="storefront-outline" size={18} color={palette.primary} />
+                  <Text style={styles.storeName}>{storeInfo.storeName}</Text>
+                </View>
+                {storeInfo.address ? (
+                  <View style={styles.storeRow}>
+                    <Ionicons name="location-outline" size={15} color={palette.textTertiary} />
+                    <Text style={styles.storeAddress}>{storeInfo.address}</Text>
+                  </View>
+                ) : (
+                  <View style={styles.storeRow}>
+                    <Ionicons name="globe-outline" size={15} color={palette.textTertiary} />
+                    <Text style={styles.storeAddress}>Tienda online, sin local presencial</Text>
+                  </View>
+                )}
+              </View>
+            )}
 
             <View style={styles.mapSection}>
               <Text style={styles.sectionTitle}>Ubicación</Text>
@@ -127,6 +150,18 @@ const styles = StyleSheet.create({
   statBorder: { borderRightWidth: 1, borderRightColor: "#F2F3F6" },
   statValue: { fontFamily: fonts.monoExtra, fontSize: 18, color: palette.primary },
   statLabel: { fontFamily: fonts.regular, fontSize: 11, color: palette.textTertiary, marginTop: 2 },
+  storeCard: {
+    margin: 16,
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: palette.borderLight,
+    padding: 14,
+    gap: 8,
+  },
+  storeRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  storeName: { fontFamily: fonts.bold, fontSize: 14, color: palette.textPrimary, flex: 1 },
+  storeAddress: { fontFamily: fonts.regular, fontSize: 13, color: palette.textTertiary, flex: 1 },
   mapSection: { padding: 16 },
   sectionTitle: { fontFamily: fonts.bold, fontSize: 15, color: palette.textPrimary, marginBottom: 10 },
   pad: { paddingHorizontal: 16, marginTop: 8 },

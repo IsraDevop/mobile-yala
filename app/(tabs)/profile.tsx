@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,13 +20,19 @@ export default function ProfileScreen() {
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>("listings");
 
-  const { data: fullUser } = useFetch<User>("/users/me");
-  const { data: listingsPage } = useFetch<{ content: Listing[] }>(
+  const { data: fullUser, refetch: refetchUser } = useFetch<User>("/users/me");
+  const { data: listingsPage, loading: listingsLoading, refetch: refetchListings } = useFetch<{ content: Listing[] }>(
     user ? `/users/${user.id}/listings?page=0&size=20` : null
   );
-  const { data: reviewsPage } = useFetch<{ content: Review[] }>(
+  const { data: reviewsPage, refetch: refetchReviews } = useFetch<{ content: Review[] }>(
     user ? `/reviews/user/${user.id}?page=0&size=20` : null
   );
+
+  const onRefresh = () => {
+    refetchUser();
+    refetchListings();
+    refetchReviews();
+  };
 
   const me = fullUser ?? user;
   if (!me) return null;
@@ -36,7 +42,14 @@ export default function ProfileScreen() {
   const reputation = fullUser?.reputation ?? 0;
 
   return (
-    <ScrollView style={styles.flex} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.flex}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl refreshing={listingsLoading} onRefresh={onRefresh} tintColor={palette.primary} />
+      }
+    >
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <View style={styles.headerActions}>
           <Pressable onPress={() => router.push("/edit-profile")} hitSlop={8}>
@@ -89,6 +102,29 @@ export default function ProfileScreen() {
         <Text style={styles.ordersText}>Mis órdenes</Text>
         <Ionicons name="chevron-forward" size={18} color="#9499A3" />
       </Pressable>
+
+      {me.isVerifiedSeller || me.role === "SELLER" ? (
+        <>
+          <Pressable style={styles.ordersRow} onPress={() => router.push("/my-sales")}>
+            <View style={styles.ordersIcon}>
+              <Ionicons name="storefront-outline" size={18} color={palette.primary} />
+            </View>
+            <Text style={styles.ordersText}>Mis ventas / Ganadores</Text>
+            <Ionicons name="chevron-forward" size={18} color="#9499A3" />
+          </Pressable>
+        </>
+      ) : (
+        <Pressable style={styles.sellerCta} onPress={() => router.push("/seller/apply")}>
+          <View style={styles.ordersIcon}>
+            <Ionicons name="business-outline" size={18} color={palette.primary} />
+          </View>
+          <View style={styles.sellerCtaText}>
+            <Text style={styles.ordersText}>Conviértete en vendedor</Text>
+            <Text style={styles.sellerCtaSub}>Publica coleccionables y llega a más compradores</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#9499A3" />
+        </Pressable>
+      )}
 
       <View style={styles.tabs}>
         <Pressable onPress={() => setTab("listings")}>
@@ -211,6 +247,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   ordersText: { flex: 1, fontFamily: fonts.bold, fontSize: 14, color: palette.textPrimary },
+  liveIcon: { backgroundColor: palette.secondaryBg },
+  sellerCta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: palette.primaryContainer,
+    borderWidth: 1,
+    borderColor: palette.primary,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    marginHorizontal: 18,
+    marginTop: 10,
+  },
+  sellerCtaText: { flex: 1 },
+  sellerCtaSub: { fontFamily: fonts.regular, fontSize: 11, color: palette.primary, marginTop: 2 },
   tabs: {
     flexDirection: "row",
     gap: 22,

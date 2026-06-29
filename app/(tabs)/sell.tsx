@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -10,7 +10,6 @@ import { useForm } from "../../src/hooks/useForm";
 import { useFetch } from "../../src/hooks/useFetch";
 import { listingService } from "../../src/services/listingService";
 import { getApiErrorMessage } from "../../src/utils/apiError";
-import { isValidPrice } from "../../src/utils/validators";
 import { pickImageFromGallery } from "../../src/utils/imageUtils";
 import { Field } from "../../src/components/Field";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
@@ -18,21 +17,22 @@ import { EmptyState } from "../../src/components/EmptyState";
 import type { Category } from "../../src/types";
 import { palette, fonts } from "../../src/theme/theme";
 
+const CONDITIONS = ["Sellado", "Como nuevo", "Con desgaste"];
+
 export default function SellScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { showToast } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
-  const [tags, setTags] = useState<string[]>([]);
-  const [tagInput, setTagInput] = useState("");
+  const [conditionOpen, setConditionOpen] = useState(false);
 
   const { data: categories } = useFetch<Category[]>("/categories");
 
   const form = useForm({
     title: "",
     description: "",
-    mode: "FIXED" as "FIXED" | "AUCTION",
+    mode: "AUCTION" as "FIXED" | "AUCTION",
     fixedPrice: "",
     condition: "",
     categoryId: 0,
@@ -44,7 +44,9 @@ export default function SellScreen() {
         <EmptyState
           icon="lock-closed-outline"
           title="Solo vendedores"
-          description="Para publicar coleccionables necesitás una cuenta de vendedor."
+          description="Para publicar coleccionables necesitas una cuenta de vendedor."
+          ctaLabel="Conviértete en vendedor"
+          onCta={() => router.push("/seller/apply")}
         />
       </View>
     );
@@ -56,21 +58,12 @@ export default function SellScreen() {
     if (uri) setPhotos((p) => [...p, uri]);
   }
 
-  function addTag() {
-    const t = tagInput.trim().toLowerCase();
-    if (t && !tags.includes(t) && tags.length < 6) setTags((prev) => [...prev, t]);
-    setTagInput("");
-  }
-
   async function handleSubmit() {
-    const { title, description, mode, fixedPrice, condition, categoryId } = form.values;
+    const { title, description, condition, categoryId } = form.values;
     let valid = true;
     if (!title.trim()) { form.setError("title", "El título es obligatorio"); valid = false; }
     if (!condition.trim()) { form.setError("condition", "La condición es obligatoria"); valid = false; }
     if (categoryId === 0) { form.setError("categoryId", "Selecciona una categoría"); valid = false; }
-    if (mode === "FIXED" && !isValidPrice(Number(fixedPrice))) {
-      form.setError("fixedPrice", "Ingresa un precio válido"); valid = false;
-    }
     if (!valid) return;
 
     try {
@@ -78,11 +71,9 @@ export default function SellScreen() {
       const listing = await listingService.create({
         title: title.trim(),
         description: description.trim(),
-        mode,
-        fixedPrice: mode === "FIXED" ? Number(fixedPrice) : undefined,
+        mode: "AUCTION",
         condition: condition.trim(),
         categoryId,
-        tags,
       });
 
       if (photos.length > 0) {
@@ -94,8 +85,7 @@ export default function SellScreen() {
       }
 
       showToast("¡Publicación creada!", "success");
-      if (mode === "AUCTION") router.push(`/create-auction?listingId=${listing.id}`);
-      else router.replace(`/listing/${listing.id}`);
+      router.push(`/create-auction?listingId=${listing.id}`);
     } catch (err) {
       showToast(getApiErrorMessage(err), "error");
     } finally {
@@ -114,7 +104,8 @@ export default function SellScreen() {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.photosRow}>
           <Pressable style={styles.addPhoto} onPress={pickImage}>
             <Ionicons name="add" size={22} color={palette.primary} />
@@ -146,40 +137,17 @@ export default function SellScreen() {
           onChangeText={(t) => form.setValue("description", t)}
           multiline
         />
-        <Field
-          label="Condición"
-          placeholder="PSA 9 — Mint"
-          value={form.values.condition}
-          onChangeText={(t) => form.setValue("condition", t)}
-          error={form.errors.condition}
-        />
-
-        <Text style={styles.label}>Modo de venta</Text>
-        <View style={styles.toggleRow}>
-          <Pressable
-            style={[styles.toggle, !isAuction ? styles.toggleOn : styles.toggleOff]}
-            onPress={() => form.setValue("mode", "FIXED")}
-          >
-            <Text style={!isAuction ? styles.toggleOnText : styles.toggleOffText}>Precio fijo</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.toggle, isAuction ? styles.toggleOn : styles.toggleOff]}
-            onPress={() => form.setValue("mode", "AUCTION")}
-          >
-            <Text style={isAuction ? styles.toggleOnText : styles.toggleOffText}>Subasta</Text>
-          </Pressable>
-        </View>
-
-        {!isAuction && (
-          <Field
-            label="Precio (S/.)"
-            placeholder="100"
-            value={form.values.fixedPrice}
-            onChangeText={(t) => form.setValue("fixedPrice", t)}
-            error={form.errors.fixedPrice}
-            keyboardType="decimal-pad"
-          />
-        )}
+        <Text style={styles.label}>Condición</Text>
+        <Pressable
+          style={[styles.select, form.errors.condition ? styles.selectError : null]}
+          onPress={() => setConditionOpen(true)}
+        >
+          <Text style={form.values.condition ? styles.selectValue : styles.selectPlaceholder}>
+            {form.values.condition || "Elige la condición"}
+          </Text>
+          <Ionicons name="chevron-down" size={18} color="#9499A3" />
+        </Pressable>
+        {form.errors.condition ? <Text style={styles.fieldError}>{form.errors.condition}</Text> : null}
 
         <Text style={styles.label}>Categoría</Text>
         <View style={styles.pills}>
@@ -197,35 +165,45 @@ export default function SellScreen() {
           })}
         </View>
         {form.errors.categoryId ? <Text style={styles.fieldError}>{form.errors.categoryId}</Text> : null}
+        </ScrollView>
+      </KeyboardAvoidingView>
 
-        <Text style={[styles.label, { marginTop: 16 }]}>Tags</Text>
-        <View style={styles.pills}>
-          {tags.map((t) => (
-            <Pressable key={t} style={styles.tagOn} onPress={() => setTags((prev) => prev.filter((x) => x !== t))}>
-              <Text style={styles.tagOnText}>{t} ✕</Text>
-            </Pressable>
-          ))}
-          <View style={styles.tagInputWrap}>
-            <Field
-              value={tagInput}
-              onChangeText={setTagInput}
-              placeholder="+ tag"
-              onSubmitEditing={addTag}
-              returnKeyType="done"
-              autoCapitalize="none"
-              style={styles.tagInput}
-            />
-          </View>
-        </View>
-      </ScrollView>
-
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom || 18 }]}>
         <PrimaryButton
           label={isAuction ? "Crear y configurar subasta" : "Publicar"}
           onPress={handleSubmit}
           loading={submitting}
         />
       </View>
+
+      <Modal
+        visible={conditionOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConditionOpen(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setConditionOpen(false)}>
+          <View style={styles.modalSheet}>
+            <Text style={styles.modalTitle}>Condición</Text>
+            {CONDITIONS.map((opt) => {
+              const active = form.values.condition === opt;
+              return (
+                <Pressable
+                  key={opt}
+                  style={styles.modalOption}
+                  onPress={() => {
+                    form.setValue("condition", opt);
+                    setConditionOpen(false);
+                  }}
+                >
+                  <Text style={[styles.modalOptionText, active && styles.modalOptionTextOn]}>{opt}</Text>
+                  {active && <Ionicons name="checkmark" size={18} color={palette.primary} />}
+                </Pressable>
+              );
+            })}
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -265,9 +243,22 @@ const styles = StyleSheet.create({
   pillOff: { backgroundColor: palette.fill },
   pillOnText: { fontFamily: fonts.bold, fontSize: 12, color: "#fff" },
   pillOffText: { fontFamily: fonts.bold, fontSize: 12, color: "#5A5F6A" },
-  tagOn: { backgroundColor: palette.primaryContainer, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7 },
-  tagOnText: { fontFamily: fonts.mono, fontSize: 12, color: palette.primary },
-  tagInputWrap: { width: 110 },
-  tagInput: { paddingVertical: 6 },
+  select: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    height: 48, borderRadius: 13, borderWidth: 1.5, borderColor: palette.border,
+    backgroundColor: "#fff", paddingHorizontal: 14, marginBottom: 4,
+  },
+  selectError: { borderColor: palette.error },
+  selectValue: { fontFamily: fonts.medium, fontSize: 14, color: palette.textPrimary },
+  selectPlaceholder: { fontFamily: fonts.regular, fontSize: 14, color: "#9499A3" },
+  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
+  modalSheet: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 18, paddingBottom: 28 },
+  modalTitle: { fontFamily: fonts.extrabold, fontSize: 16, color: palette.textPrimary, marginBottom: 8 },
+  modalOption: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#F2F3F6",
+  },
+  modalOptionText: { fontFamily: fonts.bold, fontSize: 14, color: "#5A5F6A" },
+  modalOptionTextOn: { color: palette.primary },
   footer: { padding: 18, backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: palette.borderLight },
 });

@@ -18,4 +18,9 @@ export const orderService = {
 
   cancel: (id: number) =>
     api.put<Order>(`/orders/${id}/cancel`).then((r) => r.data),
+
+  findMySales: (page = 0, size = 20) =>
+    api
+      .get<PageResponse<Order>>(`/orders/my-sales?page=${page}&size=${size}`)
+      .then((r) => r.data),
 };

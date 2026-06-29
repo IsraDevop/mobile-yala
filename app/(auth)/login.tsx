@@ -15,25 +15,29 @@ import { useToast } from "../../src/context/ToastContext";
 import { useForm } from "../../src/hooks/useForm";
 import { authService } from "../../src/services/authService";
 import { getApiErrorMessage } from "../../src/utils/apiError";
-import { isValidEmail, isValidPassword, isValidName } from "../../src/utils/validators";
+import { isValidEmail, isValidPassword, isValidName, isValidDni } from "../../src/utils/validators";
 import { Logo } from "../../src/components/Logo";
 import { Field } from "../../src/components/Field";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { palette, fonts } from "../../src/theme/theme";
-import type { UserRole } from "../../src/types";
-
 type Tab = "login" | "register";
 
 export default function LoginScreen() {
   const [tab, setTab] = useState<Tab>("login");
   const [submitting, setSubmitting] = useState(false);
   const [showPass, setShowPass] = useState(false);
-  const [role, setRole] = useState<UserRole>("USER");
   const { login } = useAuth();
   const { showToast } = useToast();
 
   const loginForm = useForm({ email: "", password: "" });
-  const registerForm = useForm({ name: "", email: "", password: "" });
+  const registerForm = useForm({
+    dni: "",
+    nombres: "",
+    apellidoPaterno: "",
+    apellidoMaterno: "",
+    email: "",
+    password: "",
+  });
 
   async function handleLogin() {
     const { email, password } = loginForm.values;
@@ -54,15 +58,25 @@ export default function LoginScreen() {
   }
 
   async function handleRegister() {
-    const { name, email, password } = registerForm.values;
+    const { dni, nombres, apellidoPaterno, apellidoMaterno, email, password } = registerForm.values;
     let valid = true;
-    if (!isValidName(name)) { registerForm.setError("name", "Mínimo 2 caracteres"); valid = false; }
+    if (!isValidDni(dni)) { registerForm.setError("dni", "El DNI debe tener 8 dígitos"); valid = false; }
+    if (!isValidName(nombres)) { registerForm.setError("nombres", "Mínimo 2 caracteres"); valid = false; }
+    if (!isValidName(apellidoPaterno)) { registerForm.setError("apellidoPaterno", "Mínimo 2 caracteres"); valid = false; }
+    if (!isValidName(apellidoMaterno)) { registerForm.setError("apellidoMaterno", "Mínimo 2 caracteres"); valid = false; }
     if (!isValidEmail(email)) { registerForm.setError("email", "Email inválido"); valid = false; }
     if (!isValidPassword(password)) { registerForm.setError("password", "Mínimo 8 caracteres"); valid = false; }
     if (!valid) return;
     try {
       setSubmitting(true);
-      const data = await authService.register({ name: name.trim(), email: email.trim(), password, role });
+      const data = await authService.register({
+        dni: dni.trim(),
+        nombres: nombres.trim(),
+        apellidoPaterno: apellidoPaterno.trim(),
+        apellidoMaterno: apellidoMaterno.trim(),
+        email: email.trim(),
+        password,
+      });
       await login(data);
       router.replace("/(tabs)");
     } catch (err) {
@@ -132,11 +146,33 @@ export default function LoginScreen() {
           ) : (
             <>
               <Field
-                label="Nombre"
-                placeholder="Ana Torres"
-                value={registerForm.values.name}
-                onChangeText={(t) => registerForm.setValue("name", t)}
-                error={registerForm.errors.name}
+                label="DNI"
+                placeholder="12345678"
+                value={registerForm.values.dni}
+                onChangeText={(t) => registerForm.setValue("dni", t.replace(/\D/g, "").slice(0, 8))}
+                error={registerForm.errors.dni}
+                keyboardType="number-pad"
+              />
+              <Field
+                label="Nombres"
+                placeholder="Ana Lucía"
+                value={registerForm.values.nombres}
+                onChangeText={(t) => registerForm.setValue("nombres", t)}
+                error={registerForm.errors.nombres}
+              />
+              <Field
+                label="Apellido paterno"
+                placeholder="Torres"
+                value={registerForm.values.apellidoPaterno}
+                onChangeText={(t) => registerForm.setValue("apellidoPaterno", t)}
+                error={registerForm.errors.apellidoPaterno}
+              />
+              <Field
+                label="Apellido materno"
+                placeholder="Mendoza"
+                value={registerForm.values.apellidoMaterno}
+                onChangeText={(t) => registerForm.setValue("apellidoMaterno", t)}
+                error={registerForm.errors.apellidoMaterno}
               />
               <Field
                 label="Email"
@@ -156,21 +192,6 @@ export default function LoginScreen() {
                 secureTextEntry={!showPass}
                 right={eye}
               />
-              <Text style={styles.quieroLabel}>Quiero</Text>
-              <View style={styles.toggleRow}>
-                <Pressable
-                  style={[styles.toggle, role === "USER" ? styles.toggleOn : styles.toggleOff]}
-                  onPress={() => setRole("USER")}
-                >
-                  <Text style={role === "USER" ? styles.toggleOnText : styles.toggleOffText}>Comprar</Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.toggle, role === "SELLER" ? styles.toggleOn : styles.toggleOff]}
-                  onPress={() => setRole("SELLER")}
-                >
-                  <Text style={role === "SELLER" ? styles.toggleOnText : styles.toggleOffText}>Vender</Text>
-                </Pressable>
-              </View>
               <View style={styles.btn}>
                 <PrimaryButton label="Crear cuenta" onPress={handleRegister} loading={submitting} />
               </View>
@@ -207,11 +228,4 @@ const styles = StyleSheet.create({
   linkRow: { alignItems: "center", marginTop: 18 },
   linkMuted: { fontFamily: fonts.medium, fontSize: 13, color: "#8A8F98" },
   link: { fontFamily: fonts.bold, color: palette.primary },
-  quieroLabel: { fontFamily: fonts.bold, fontSize: 13, color: "#3A3D46", marginBottom: 9 },
-  toggleRow: { flexDirection: "row", gap: 10, marginBottom: 6 },
-  toggle: { flex: 1, height: 46, borderRadius: 13, borderWidth: 1.5, justifyContent: "center", alignItems: "center" },
-  toggleOn: { borderColor: palette.primary, backgroundColor: palette.primaryContainer },
-  toggleOff: { borderColor: palette.border },
-  toggleOnText: { fontFamily: fonts.extrabold, fontSize: 13, color: palette.primary },
-  toggleOffText: { fontFamily: fonts.bold, fontSize: 13, color: "#7C808B" },
 });

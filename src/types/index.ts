@@ -16,7 +16,9 @@ export interface User {
   avatarUrl: string | null;
   reputation: number;
   isVerifiedSeller: boolean;
+  isIdentityVerified: boolean;
   role: UserRole;
+  dni?: string;
 }
 
 export interface Category {
@@ -82,9 +84,91 @@ export interface Order {
   amount: number;
   status: OrderStatus;
   createdAt: string;
-  listing: Listing;
+  paymentDeadline: string | null;
+  itemTitle: string | null;
+  listing: Listing | null;
   buyer: User;
   seller: User;
+}
+
+// --- Live streaming ---
+export type LiveStatus = "LIVE" | "ENDED";
+export type FlashAuctionStatus = "ACTIVE" | "SOLD" | "DESERTED";
+
+export interface LiveSummary {
+  id: number;
+  title: string;
+  status: LiveStatus;
+  coverImageUrl: string | null;
+  sellerName: string | null;
+  sellerId: number | null;
+  startedAt: string;
+}
+
+export interface FlashAuction {
+  id: number;
+  liveStreamId: number;
+  title: string;
+  basePrice: number;
+  bidIncrement: number;
+  currentPrice: number | null;
+  status: FlashAuctionStatus;
+  winnerName: string | null;
+  totalBids: number;
+  startedAt: string;
+}
+
+export interface LiveDetail {
+  id: number;
+  title: string;
+  status: LiveStatus;
+  roomName: string;
+  coverImageUrl: string | null;
+  startedAt: string;
+  endedAt: string | null;
+  seller: User | null;
+  activeAuction: FlashAuction | null;
+}
+
+export interface LiveToken {
+  streamId: number;
+  roomName: string;
+  url: string;
+  token: string;
+}
+
+export interface LiveComment {
+  id: number;
+  text: string;
+  createdAt: string;
+  userName: string | null;
+  userId: number | null;
+}
+
+export type LiveUpdateType = "AUCTION_STARTED" | "BID" | "AUCTION_CLOSED" | "LIVE_ENDED";
+
+export interface LiveUpdateMessage {
+  type: LiveUpdateType;
+  auction: FlashAuction | null;
+}
+
+export interface StartLiveRequest {
+  title: string;
+  coverImageUrl?: string;
+}
+
+export interface CreateFlashAuctionRequest {
+  title: string;
+  basePrice: number;
+  bidIncrement?: number;
+}
+
+export interface PlaceLiveBidRequest {
+  amount: number;
+}
+
+export interface PostLiveCommentRequest {
+  text: string;
 }
 
 export interface Review {
@@ -118,10 +202,12 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
-  name: string;
+  dni: string;
   email: string;
   password: string;
-  role?: UserRole;
+  nombres: string;
+  apellidoPaterno: string;
+  apellidoMaterno: string;
 }
 
 export interface AuthResponse {
@@ -181,6 +267,30 @@ export interface PaymentPreferenceRequest {
 export interface PaymentPreferenceResponse {
   initPoint: string;
   preferenceId: string;
+}
+
+export type SellerApplicationStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export interface SellerApplication {
+  id?: number;
+  storeName: string;
+  address?: string;
+  phone: string;
+  cci: string;
+  status?: SellerApplicationStatus;
+  diditUrl?: string;
+}
+
+export interface SellerApplyRequest {
+  storeName: string;
+  address?: string;
+  phone: string;
+  cci: string;
+}
+
+export interface SellerStoreInfo {
+  storeName: string;
+  address?: string;
 }
 
 export interface Pageable {

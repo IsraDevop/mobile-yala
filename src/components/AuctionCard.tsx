@@ -14,6 +14,8 @@ interface AuctionCardProps {
 export function AuctionCard({ auction, onPress }: AuctionCardProps) {
   const listing = auction.listing;
   const imageUrl = listing?.imageUrls?.[0];
+  const statusLabel =
+    auction.status === "FINISHED" ? "Finalizado" : auction.status === "ACTIVE" ? "En subasta" : null;
 
   return (
     <Pressable onPress={onPress} style={styles.card}>
@@ -25,10 +27,12 @@ export function AuctionCard({ auction, onPress }: AuctionCardProps) {
             <Text style={styles.placeholderText}>Yala</Text>
           </View>
         )}
-        <View style={styles.liveBadge}>
-          <View style={styles.liveDot} />
-          <Text style={styles.liveText}>En vivo</Text>
-        </View>
+        {statusLabel && (
+          <View style={styles.liveBadge}>
+            <View style={styles.liveDot} />
+            <Text style={styles.liveText}>{statusLabel}</Text>
+          </View>
+        )}
         <View style={styles.timer}>
           <CountdownTimer endsAt={auction.endsAt} variant="onImage" />
         </View>

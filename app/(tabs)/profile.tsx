@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,13 +20,19 @@ export default function ProfileScreen() {
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>("listings");
 
-  const { data: fullUser } = useFetch<User>("/users/me");
-  const { data: listingsPage } = useFetch<{ content: Listing[] }>(
+  const { data: fullUser, refetch: refetchUser } = useFetch<User>("/users/me");
+  const { data: listingsPage, loading: listingsLoading, refetch: refetchListings } = useFetch<{ content: Listing[] }>(
     user ? `/users/${user.id}/listings?page=0&size=20` : null
   );
-  const { data: reviewsPage } = useFetch<{ content: Review[] }>(
+  const { data: reviewsPage, refetch: refetchReviews } = useFetch<{ content: Review[] }>(
     user ? `/reviews/user/${user.id}?page=0&size=20` : null
   );
+
+  const onRefresh = () => {
+    refetchUser();
+    refetchListings();
+    refetchReviews();
+  };
 
   const me = fullUser ?? user;
   if (!me) return null;
@@ -36,7 +42,14 @@ export default function ProfileScreen() {
   const reputation = fullUser?.reputation ?? 0;
 
   return (
-    <ScrollView style={styles.flex} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.flex}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl refreshing={listingsLoading} onRefresh={onRefresh} tintColor={palette.primary} />
+      }
+    >
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <View style={styles.headerActions}>
           <Pressable onPress={() => router.push("/edit-profile")} hitSlop={8}>

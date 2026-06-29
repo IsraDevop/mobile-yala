@@ -3,6 +3,7 @@ import { Image, Linking, Pressable, ScrollView, StyleSheet, View } from "react-n
 import { Text } from "react-native-paper";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFetch } from "../../src/hooks/useFetch";
 import { useAuth } from "../../src/context/AuthContext";
 import { useToast } from "../../src/context/ToastContext";
@@ -29,6 +30,7 @@ const STATUS_STYLE: Record<OrderStatus, { bg: string; fg: string }> = {
 };
 
 export default function OrderDetailScreen() {
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -130,7 +132,7 @@ export default function OrderDetailScreen() {
         )}
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom || 18 }]}>
         {order.status === "PENDING" && isBuyer && (
           <PrimaryButton label="Pagar con Mercado Pago" onPress={handlePay} loading={acting} />
         )}

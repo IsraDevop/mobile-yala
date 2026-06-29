@@ -130,6 +130,47 @@ export interface LiveDetail {
   activeAuction: FlashAuction | null;
 }
 
+export interface LiveToken {
+  streamId: number;
+  roomName: string;
+  url: string;
+  token: string;
+}
+
+export interface LiveComment {
+  id: number;
+  text: string;
+  createdAt: string;
+  userName: string | null;
+  userId: number | null;
+}
+
+export type LiveUpdateType = "AUCTION_STARTED" | "BID" | "AUCTION_CLOSED" | "LIVE_ENDED";
+
+export interface LiveUpdateMessage {
+  type: LiveUpdateType;
+  auction: FlashAuction | null;
+}
+
+export interface StartLiveRequest {
+  title: string;
+  coverImageUrl?: string;
+}
+
+export interface CreateFlashAuctionRequest {
+  title: string;
+  basePrice: number;
+  bidIncrement?: number;
+}
+
+export interface PlaceLiveBidRequest {
+  amount: number;
+}
+
+export interface PostLiveCommentRequest {
+  text: string;
+}
+
 export interface Review {
   id: number;
   rating: number;

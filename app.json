@@ -73,6 +73,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "26318504-064c-4652-9873-bec1935d6fc8"
+      }
+    },
+    "owner": "isracarlosz"
   }
 }

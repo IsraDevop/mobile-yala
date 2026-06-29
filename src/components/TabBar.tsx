@@ -8,7 +8,7 @@ import { useUnreadCount } from "../hooks/useUnreadCount";
 
 const ICONS: Record<string, { on: keyof typeof Ionicons.glyphMap; off: keyof typeof Ionicons.glyphMap; label: string }> = {
   index: { on: "home", off: "home-outline", label: "Inicio" },
-  auctions: { on: "flash", off: "flash-outline", label: "Subastas" },
+  auctions: { on: "radio", off: "radio-outline", label: "Live" },
   notifications: { on: "notifications", off: "notifications-outline", label: "Avisos" },
   profile: { on: "person", off: "person-outline", label: "Perfil" },
 };

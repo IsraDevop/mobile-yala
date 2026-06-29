@@ -13,6 +13,11 @@ export function ListingCard({ listing, onPress }: ListingCardProps) {
   const imageUrl = listing.imageUrls?.[0];
   const isAuction = listing.mode === "AUCTION";
   const price = isAuction && listing.auction ? listing.auction.currentPrice : listing.fixedPrice;
+  const statusLabel =
+    listing.auction?.status === "FINISHED" ? "Finalizado"
+      : listing.status === "SOLD" ? "Vendido"
+        : "En subasta";
+  const statusActive = statusLabel === "En subasta";
 
   return (
     <Pressable onPress={onPress} style={styles.wrapper}>
@@ -25,14 +30,9 @@ export function ListingCard({ listing, onPress }: ListingCardProps) {
               <Text style={styles.placeholderText}>Yala</Text>
             </View>
           )}
-          <View
-            style={[
-              styles.modeBadge,
-              { backgroundColor: isAuction ? palette.secondary : "#fff" },
-            ]}
-          >
-            <Text style={[styles.modeText, { color: isAuction ? "#fff" : palette.primary }]}>
-              {isAuction ? "Subasta" : "Precio fijo"}
+          <View style={[styles.modeBadge, { backgroundColor: statusActive ? palette.secondary : "#fff" }]}>
+            <Text style={[styles.modeText, { color: statusActive ? "#fff" : palette.primary }]}>
+              {statusLabel}
             </Text>
           </View>
         </View>

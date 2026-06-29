@@ -10,7 +10,6 @@ import { useForm } from "../../src/hooks/useForm";
 import { useFetch } from "../../src/hooks/useFetch";
 import { listingService } from "../../src/services/listingService";
 import { getApiErrorMessage } from "../../src/utils/apiError";
-import { isValidPrice } from "../../src/utils/validators";
 import { pickImageFromGallery } from "../../src/utils/imageUtils";
 import { Field } from "../../src/components/Field";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
@@ -18,13 +17,7 @@ import { EmptyState } from "../../src/components/EmptyState";
 import type { Category } from "../../src/types";
 import { palette, fonts } from "../../src/theme/theme";
 
-const CONDITIONS = [
-  "PSA 10 (Gem Mint)",
-  "PSA 9 (Mint)",
-  "PSA 8 (Near Mint)",
-  "PSA 7 o menor",
-  "Sin gradar (Excelente/Bueno)",
-];
+const CONDITIONS = ["Sellado", "Como nuevo", "Con desgaste"];
 
 export default function SellScreen() {
   const insets = useSafeAreaInsets();
@@ -39,7 +32,7 @@ export default function SellScreen() {
   const form = useForm({
     title: "",
     description: "",
-    mode: "FIXED" as "FIXED" | "AUCTION",
+    mode: "AUCTION" as "FIXED" | "AUCTION",
     fixedPrice: "",
     condition: "",
     categoryId: 0,
@@ -66,14 +59,11 @@ export default function SellScreen() {
   }
 
   async function handleSubmit() {
-    const { title, description, mode, fixedPrice, condition, categoryId } = form.values;
+    const { title, description, condition, categoryId } = form.values;
     let valid = true;
     if (!title.trim()) { form.setError("title", "El título es obligatorio"); valid = false; }
     if (!condition.trim()) { form.setError("condition", "La condición es obligatoria"); valid = false; }
     if (categoryId === 0) { form.setError("categoryId", "Selecciona una categoría"); valid = false; }
-    if (mode === "FIXED" && !isValidPrice(Number(fixedPrice))) {
-      form.setError("fixedPrice", "Ingresa un precio válido"); valid = false;
-    }
     if (!valid) return;
 
     try {
@@ -81,8 +71,7 @@ export default function SellScreen() {
       const listing = await listingService.create({
         title: title.trim(),
         description: description.trim(),
-        mode,
-        fixedPrice: mode === "FIXED" ? Number(fixedPrice) : undefined,
+        mode: "AUCTION",
         condition: condition.trim(),
         categoryId,
       });
@@ -96,8 +85,7 @@ export default function SellScreen() {
       }
 
       showToast("¡Publicación creada!", "success");
-      if (mode === "AUCTION") router.push(`/create-auction?listingId=${listing.id}`);
-      else router.replace(`/listing/${listing.id}`);
+      router.push(`/create-auction?listingId=${listing.id}`);
     } catch (err) {
       showToast(getApiErrorMessage(err), "error");
     } finally {
@@ -160,33 +148,6 @@ export default function SellScreen() {
           <Ionicons name="chevron-down" size={18} color="#9499A3" />
         </Pressable>
         {form.errors.condition ? <Text style={styles.fieldError}>{form.errors.condition}</Text> : null}
-
-        <Text style={styles.label}>Modo de venta</Text>
-        <View style={styles.toggleRow}>
-          <Pressable
-            style={[styles.toggle, !isAuction ? styles.toggleOn : styles.toggleOff]}
-            onPress={() => form.setValue("mode", "FIXED")}
-          >
-            <Text style={!isAuction ? styles.toggleOnText : styles.toggleOffText}>Precio fijo</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.toggle, isAuction ? styles.toggleOn : styles.toggleOff]}
-            onPress={() => form.setValue("mode", "AUCTION")}
-          >
-            <Text style={isAuction ? styles.toggleOnText : styles.toggleOffText}>Subasta</Text>
-          </Pressable>
-        </View>
-
-        {!isAuction && (
-          <Field
-            label="Precio (S/.)"
-            placeholder="100"
-            value={form.values.fixedPrice}
-            onChangeText={(t) => form.setValue("fixedPrice", t)}
-            error={form.errors.fixedPrice}
-            keyboardType="decimal-pad"
-          />
-        )}
 
         <Text style={styles.label}>Categoría</Text>
         <View style={styles.pills}>

@@ -10,6 +10,7 @@ interface LiveCardProps {
 
 // Horizontal card for the "En vivo ahora" home carousel.
 export function LiveCard({ live, onPress }: LiveCardProps) {
+  const badgeLabel = live.status === "ENDED" ? "Finalizado" : "En vivo";
   return (
     <Pressable onPress={onPress} style={styles.card}>
       <View style={styles.media}>
@@ -22,7 +23,7 @@ export function LiveCard({ live, onPress }: LiveCardProps) {
         )}
         <View style={styles.badge}>
           <View style={styles.dot} />
-          <Text style={styles.badgeText}>En vivo</Text>
+          <Text style={styles.badgeText}>{badgeLabel}</Text>
         </View>
       </View>
       <View style={styles.body}>

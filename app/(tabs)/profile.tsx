@@ -112,13 +112,6 @@ export default function ProfileScreen() {
             <Text style={styles.ordersText}>Mis ventas / Ganadores</Text>
             <Ionicons name="chevron-forward" size={18} color="#9499A3" />
           </Pressable>
-          <Pressable style={styles.ordersRow} onPress={() => router.push("/seller/go-live")}>
-            <View style={[styles.ordersIcon, styles.liveIcon]}>
-              <Ionicons name="radio-outline" size={18} color={palette.secondary} />
-            </View>
-            <Text style={styles.ordersText}>Salir en vivo</Text>
-            <Ionicons name="chevron-forward" size={18} color="#9499A3" />
-          </Pressable>
         </>
       ) : (
         <Pressable style={styles.sellerCta} onPress={() => router.push("/seller/apply")}>

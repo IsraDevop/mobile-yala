@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Image, ScrollView, StyleSheet, TextInput, View, Pressable } from "react-native";
+import { Alert, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View, Pressable } from "react-native";
 import { Text } from "react-native-paper";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -13,6 +13,7 @@ import { ErrorView } from "../../src/components/ErrorView";
 import { useAuth } from "../../src/context/AuthContext";
 import { useToast } from "../../src/context/ToastContext";
 import { bidService } from "../../src/services/bidService";
+import { listingService } from "../../src/services/listingService";
 import { getApiErrorMessage } from "../../src/utils/apiError";
 import { formatPrice } from "../../src/utils/formatters";
 import { isValidBidAmount } from "../../src/utils/validators";
@@ -58,9 +59,29 @@ export default function AuctionDetailScreen() {
   const image = listing?.imageUrls?.[0];
   const isActive = auction.status === "ACTIVE" && !expired;
   const increment = Math.max(1, Math.round(auction.currentPrice * 0.01));
+  const statusLabel =
+    auction.status === "FINISHED" ? "Finalizado" : auction.status === "ACTIVE" ? "En subasta" : null;
+  const isOwner = !!(user && auction.listing?.seller && user.id === auction.listing.seller.id);
+
+  function handleDelete() {
+    const lid = auction?.listing?.id;
+    if (!lid) return;
+    Alert.alert("Eliminar publicación", "¿Seguro que quieres eliminar esta subasta? Se retira del marketplace.", [
+      { text: "Cancelar", style: "cancel" },
+      { text: "Eliminar", style: "destructive", onPress: async () => {
+        try {
+          await listingService.cancel(lid);
+          showToast("Publicación eliminada", "success");
+          router.back();
+        } catch (err) {
+          showToast(getApiErrorMessage(err), "error");
+        }
+      } },
+    ]);
+  }
 
   return (
-    <View style={styles.flex}>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScreenHeader title="Volver" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.imageWrap}>
@@ -71,10 +92,12 @@ export default function AuctionDetailScreen() {
               <Text style={styles.placeholderText}>Yala</Text>
             </View>
           )}
-          <View style={styles.liveBadge}>
-            <View style={styles.liveDot} />
-            <Text style={styles.liveText}>En vivo</Text>
-          </View>
+          {statusLabel && (
+            <View style={styles.liveBadge}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveText}>{statusLabel}</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.head}>
@@ -82,6 +105,12 @@ export default function AuctionDetailScreen() {
             {listing?.category?.name?.toUpperCase()} · {listing?.condition?.toUpperCase()}
           </Text>
           <Text style={styles.title}>{listing?.title ?? "Subasta"}</Text>
+          {isOwner && (
+            <Pressable style={styles.ownerDelete} onPress={handleDelete}>
+              <Ionicons name="trash-outline" size={16} color={palette.error} />
+              <Text style={styles.ownerDeleteText}>Eliminar publicación</Text>
+            </Pressable>
+          )}
         </View>
 
         <View style={styles.bidBox}>
@@ -113,7 +142,7 @@ export default function AuctionDetailScreen() {
         </View>
       </ScrollView>
 
-      {isActive && (
+      {isActive && !isOwner && (
         <View style={styles.footer}>
           {user ? (
             <>
@@ -140,7 +169,7 @@ export default function AuctionDetailScreen() {
           )}
         </View>
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -158,6 +187,8 @@ const styles = StyleSheet.create({
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: palette.secondary },
   liveText: { color: palette.secondary, fontFamily: fonts.bold, fontSize: 11 },
   head: { paddingHorizontal: 18, paddingTop: 14 },
+  ownerDelete: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 },
+  ownerDeleteText: { fontFamily: fonts.bold, fontSize: 13, color: palette.error },
   breadcrumb: { fontFamily: fonts.monoBold, fontSize: 10, color: palette.primary, letterSpacing: 0.6 },
   title: { fontFamily: fonts.extrabold, fontSize: 19, color: palette.textPrimary, lineHeight: 24, marginTop: 5 },
   bidBox: {

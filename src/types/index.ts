@@ -228,6 +228,30 @@ export interface PaymentPreferenceResponse {
   preferenceId: string;
 }
 
+export type SellerApplicationStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export interface SellerApplication {
+  id?: number;
+  storeName: string;
+  address?: string;
+  phone: string;
+  cci: string;
+  status?: SellerApplicationStatus;
+  diditUrl?: string;
+}
+
+export interface SellerApplyRequest {
+  storeName: string;
+  address?: string;
+  phone: string;
+  cci: string;
+}
+
+export interface SellerStoreInfo {
+  storeName: string;
+  address?: string;
+}
+
 export interface Pageable {
   page?: number;
   size?: number;

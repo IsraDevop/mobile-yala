@@ -90,6 +90,19 @@ export default function ProfileScreen() {
         <Ionicons name="chevron-forward" size={18} color="#9499A3" />
       </Pressable>
 
+      {!me.isVerifiedSeller && me.role !== "SELLER" && (
+        <Pressable style={styles.sellerCta} onPress={() => router.push("/seller/apply")}>
+          <View style={styles.ordersIcon}>
+            <Ionicons name="business-outline" size={18} color={palette.primary} />
+          </View>
+          <View style={styles.sellerCtaText}>
+            <Text style={styles.ordersText}>Conviértete en vendedor</Text>
+            <Text style={styles.sellerCtaSub}>Publica coleccionables y llega a más compradores</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#9499A3" />
+        </Pressable>
+      )}
+
       <View style={styles.tabs}>
         <Pressable onPress={() => setTab("listings")}>
           <Text style={[styles.tab, tab === "listings" && styles.tabActive]}>Publicaciones</Text>
@@ -211,6 +224,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   ordersText: { flex: 1, fontFamily: fonts.bold, fontSize: 14, color: palette.textPrimary },
+  sellerCta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: palette.primaryContainer,
+    borderWidth: 1,
+    borderColor: palette.primary,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    marginHorizontal: 18,
+    marginTop: 10,
+  },
+  sellerCtaText: { flex: 1 },
+  sellerCtaSub: { fontFamily: fonts.regular, fontSize: 11, color: palette.primary, marginTop: 2 },
   tabs: {
     flexDirection: "row",
     gap: 22,

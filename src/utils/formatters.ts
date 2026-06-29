@@ -1,5 +1,6 @@
-export function formatPrice(amount: number): string {
-  return `S/. ${amount.toFixed(2)}`;
+export function formatPrice(amount: number | null | undefined): string {
+  const n = Number(amount);
+  return `S/. ${(Number.isFinite(n) ? n : 0).toFixed(2)}`;
 }
 
 export function formatDate(isoString: string): string {

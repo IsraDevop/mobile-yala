@@ -44,7 +44,9 @@ export default function SellScreen() {
         <EmptyState
           icon="lock-closed-outline"
           title="Solo vendedores"
-          description="Para publicar coleccionables necesitás una cuenta de vendedor."
+          description="Para publicar coleccionables necesitas una cuenta de vendedor."
+          ctaLabel="Conviértete en vendedor"
+          onCta={() => router.push("/seller/apply")}
         />
       </View>
     );

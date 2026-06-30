@@ -299,95 +299,103 @@ export default function GoLiveScreen() {
         <HostStage streamId={streamId!} />
       </LiveKitRoom>
 
-      <View style={styles.controls}>
-        {!auctionActive ? (
-          <View style={styles.auctionForm}>
-            <Text style={styles.sectionTitle}>Nueva subasta flash</Text>
-            <TextInput
-              style={styles.input}
-              value={auctionTitle}
-              onChangeText={setAuctionTitle}
-              placeholder="Título del artículo"
-              placeholderTextColor={palette.textTertiary}
-            />
-            <TextInput
-              style={styles.input}
-              value={auctionBase}
-              onChangeText={setAuctionBase}
-              placeholder="Precio base (S/.)"
-              placeholderTextColor={palette.textTertiary}
-              keyboardType="decimal-pad"
-            />
-            {auctionError && <Text style={styles.errorText}>{auctionError}</Text>}
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.auctionBtn, auctionLoading && styles.btnDisabled]}
-              onPress={handleCreateAuction}
-              disabled={auctionLoading}
-            >
-              <Ionicons name="flash" size={16} color="#fff" />
-              <Text style={styles.actionBtnText}>{auctionLoading ? "Iniciando…" : "Iniciar subasta"}</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.activeAuction}>
-            <Text style={styles.sectionTitle}>Subasta activa</Text>
-            <Text numberOfLines={1} style={styles.activeAuctionTitle}>{auction!.title}</Text>
-            <View style={styles.priceRow}>
-              <Text style={styles.activePrice}>
-                S/. {(auction!.currentPrice ?? auction!.basePrice).toFixed(2)}
-              </Text>
-              <Text style={styles.activeBids}>{auction!.totalBids} puja{auction!.totalBids !== 1 ? "s" : ""}</Text>
-            </View>
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.closeAuctionBtn, auctionLoading && styles.btnDisabled]}
-              onPress={handleCloseAuction}
-              disabled={auctionLoading}
-            >
-              <Ionicons name="close-circle-outline" size={16} color="#fff" />
-              <Text style={styles.actionBtnText}>{auctionLoading ? "Cerrando…" : "Cerrar subasta"}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        <View style={styles.chatPanel}>
-          <View style={styles.chatHd}>
-            <Text style={styles.sectionTitle}>Chat en vivo</Text>
-            <TouchableOpacity style={styles.iaBtn} onPress={runSummary} disabled={summarizing}>
-              <Ionicons name="sparkles-outline" size={14} color={palette.primary} />
-              <Text style={styles.iaBtnText}>{summarizing ? "Resumiendo…" : "Resumir con IA"}</Text>
-            </TouchableOpacity>
-          </View>
-          {summary ? <Text style={styles.summaryText}>{summary}</Text> : null}
-          <FlatList
-            ref={chatRef}
-            data={comments}
-            keyExtractor={(c) => String(c.id)}
-            style={styles.chatList}
-            renderItem={({ item }) => (
-              <Text style={styles.chatMsg}>
-                <Text style={styles.chatUser}>{item.userName}: </Text>
-                {item.text}
-              </Text>
+      <FlatList
+        ref={chatRef}
+        data={comments}
+        keyExtractor={(c) => String(c.id)}
+        style={styles.chatList}
+        contentContainerStyle={styles.chatScroll}
+        ListHeaderComponent={
+          <View style={styles.controlsHeader}>
+            {!auctionActive ? (
+              <View style={styles.auctionForm}>
+                <Text style={styles.sectionTitle}>Nueva subasta flash</Text>
+                <TextInput
+                  style={styles.input}
+                  value={auctionTitle}
+                  onChangeText={setAuctionTitle}
+                  placeholder="Título del artículo"
+                  placeholderTextColor={palette.textTertiary}
+                />
+                <TextInput
+                  style={styles.input}
+                  value={auctionBase}
+                  onChangeText={(t) => { let v = t.replace(/[^\d.]/g, ""); if (Number(v) > 9999) v = "9999"; setAuctionBase(v); }}
+                  placeholder="Precio base (S/.)"
+                  placeholderTextColor={palette.textTertiary}
+                  keyboardType="decimal-pad"
+                />
+                {auctionError && <Text style={styles.errorText}>{auctionError}</Text>}
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.auctionBtn, auctionLoading && styles.btnDisabled]}
+                  onPress={handleCreateAuction}
+                  disabled={auctionLoading}
+                >
+                  <Ionicons name="flash" size={16} color="#fff" />
+                  <Text style={styles.actionBtnText}>{auctionLoading ? "Iniciando…" : "Iniciar subasta"}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.activeAuction}>
+                <Text style={styles.sectionTitle}>Subasta activa</Text>
+                <Text numberOfLines={1} style={styles.activeAuctionTitle}>{auction!.title}</Text>
+                <View style={styles.priceRow}>
+                  <Text style={styles.activePrice}>
+                    S/. {(auction!.currentPrice ?? auction!.basePrice).toFixed(2)}
+                  </Text>
+                  <Text style={styles.activeBids}>{auction!.totalBids} puja{auction!.totalBids !== 1 ? "s" : ""}</Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.closeAuctionBtn, auctionLoading && styles.btnDisabled]}
+                  onPress={handleCloseAuction}
+                  disabled={auctionLoading}
+                >
+                  <Ionicons name="close-circle-outline" size={16} color="#fff" />
+                  <Text style={styles.actionBtnText}>{auctionLoading ? "Cerrando…" : "Cerrar subasta"}</Text>
+                </TouchableOpacity>
+              </View>
             )}
-            onContentSizeChange={() => chatRef.current?.scrollToEnd({ animated: true })}
-            ListEmptyComponent={<Text style={styles.chatEmpty}>Aún no hay comentarios.</Text>}
-          />
-          <View style={styles.chatInputRow}>
-            <TextInput
-              style={[styles.input, { flex: 1 }]}
-              value={commentText}
-              onChangeText={setCommentText}
-              placeholder="Escribe un mensaje…"
-              placeholderTextColor={palette.textTertiary}
-              onSubmitEditing={sendComment}
-              returnKeyType="send"
-            />
-            <TouchableOpacity style={styles.chatSend} onPress={sendComment} disabled={posting}>
-              <Ionicons name="send" size={16} color="#fff" />
-            </TouchableOpacity>
+            <View style={styles.chatHd}>
+              <Text style={styles.sectionTitle}>Chat en vivo</Text>
+              <TouchableOpacity style={styles.iaBtn} onPress={runSummary} disabled={summarizing}>
+                <Ionicons name="sparkles-outline" size={14} color={palette.primary} />
+                <Text style={styles.iaBtnText}>{summarizing ? "Resumiendo…" : "Resumir con IA"}</Text>
+              </TouchableOpacity>
+            </View>
+            {summary ? <Text style={styles.summaryText}>{summary}</Text> : null}
           </View>
-        </View>
+        }
+        renderItem={({ item }) => {
+          const isBid = item.id < 0;
+          return (
+            <View style={[styles.chatRow, isBid && styles.chatBid]}>
+              {isBid && <Ionicons name="hammer" size={13} color={palette.secondary} style={styles.chatBidIcon} />}
+              <Text style={styles.chatMsg}>
+                <Text style={[styles.chatUser, isBid && styles.chatBidUser]}>{item.userName}: </Text>
+                <Text style={isBid ? styles.chatBidText : undefined}>{item.text}</Text>
+              </Text>
+            </View>
+          );
+        }}
+        onContentSizeChange={() => chatRef.current?.scrollToEnd({ animated: true })}
+        ListEmptyComponent={<Text style={styles.chatEmpty}>Aún no hay comentarios.</Text>}
+      />
 
+      <View style={styles.footer}>
+        <View style={styles.chatInputRow}>
+          <TextInput
+            style={[styles.input, { flex: 1 }]}
+            value={commentText}
+            onChangeText={setCommentText}
+            placeholder="Escribe un mensaje…"
+            placeholderTextColor={palette.textTertiary}
+            onSubmitEditing={sendComment}
+            returnKeyType="send"
+          />
+          <TouchableOpacity style={styles.chatSend} onPress={sendComment} disabled={posting}>
+            <Ionicons name="send" size={16} color="#fff" />
+          </TouchableOpacity>
+        </View>
         <TouchableOpacity
           style={[styles.actionBtn, styles.endBtn, endLoading && styles.btnDisabled]}
           onPress={handleEnd}
@@ -418,9 +426,17 @@ const styles = StyleSheet.create({
   iaBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: palette.primaryContainer },
   iaBtnText: { fontFamily: fonts.bold, fontSize: 12, color: palette.primary },
   summaryText: { fontFamily: fonts.regular, fontSize: 13, color: palette.textSecondary, lineHeight: 18, backgroundColor: palette.background, borderRadius: 10, padding: 10 },
-  chatList: { maxHeight: 150 },
-  chatMsg: { fontFamily: fonts.regular, fontSize: 13, color: palette.textPrimary, marginBottom: 6, lineHeight: 18 },
+  chatList: { flex: 1 },
+  chatScroll: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, gap: 2 },
+  controlsHeader: { gap: 12, marginBottom: 8 },
+  chatMsg: { fontFamily: fonts.regular, fontSize: 13, color: palette.textPrimary, lineHeight: 18, flex: 1 },
   chatUser: { fontFamily: fonts.bold, color: palette.textPrimary },
+  chatRow: { flexDirection: "row", alignItems: "center", paddingVertical: 3 },
+  chatBid: { backgroundColor: palette.secondaryBg, borderRadius: 8, paddingHorizontal: 8 },
+  chatBidIcon: { marginRight: 4 },
+  chatBidUser: { color: palette.secondary },
+  chatBidText: { fontFamily: fonts.bold, color: palette.secondary },
+  footer: { padding: 12, gap: 10, backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: palette.borderLight },
   chatEmpty: { fontFamily: fonts.regular, fontSize: 12, color: palette.textTertiary, paddingVertical: 8 },
   chatInputRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   chatSend: { width: 42, height: 42, borderRadius: 12, backgroundColor: palette.primary, justifyContent: "center", alignItems: "center" },

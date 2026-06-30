@@ -1,14 +1,13 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { FlatList, Pressable, RefreshControl, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFetch } from "../../src/hooks/useFetch";
 import { useDebounce } from "../../src/hooks/useDebounce";
 import { useAuth } from "../../src/context/AuthContext";
 import { AuctionCard } from "../../src/components/AuctionCard";
-import { LiveCard } from "../../src/components/LiveCard";
 import { ListingCard } from "../../src/components/ListingCard";
 import { SearchBar } from "../../src/components/SearchBar";
 import { CategoryTabs } from "../../src/components/CategoryTabs";
@@ -17,7 +16,7 @@ import { Loader } from "../../src/components/Loader";
 import { ErrorView } from "../../src/components/ErrorView";
 import { EmptyState } from "../../src/components/EmptyState";
 import { getAvatarInitials } from "../../src/utils/formatters";
-import type { Category, Auction, Listing, LiveSummary } from "../../src/types";
+import type { Category, Auction, Listing } from "../../src/types";
 import { palette, fonts } from "../../src/theme/theme";
 
 export default function HomeScreen() {
@@ -30,8 +29,6 @@ export default function HomeScreen() {
   const { data: categories } = useFetch<Category[]>("/categories");
   const { data: auctionsPage, refetch: refetchAuctions } = useFetch<{ content: Auction[] }>("/auctions?page=0&size=10");
   const auctions = auctionsPage?.content ?? [];
-  const { data: livesPage, refetch: refetchLives } = useFetch<{ content: LiveSummary[] }>("/live?page=0&size=12");
-  const lives = livesPage?.content ?? [];
 
   const listingParams = new URLSearchParams({ page: "0", size: "20" });
   if (debouncedSearch) listingParams.set("q", debouncedSearch);
@@ -52,34 +49,15 @@ export default function HomeScreen() {
   const onRefresh = useCallback(() => {
     refetch();
     refetchAuctions();
-    refetchLives();
-  }, [refetch, refetchAuctions, refetchLives]);
+  }, [refetch, refetchAuctions]);
+
+  // Refetch when the tab regains focus so deleted/stale auctions don't linger in memory.
+  const refetchRef = useRef(onRefresh);
+  refetchRef.current = onRefresh;
+  useFocusEffect(useCallback(() => { refetchRef.current(); }, []));
 
   const ListHeader = (
     <View>
-      {lives.length > 0 && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.liveRow}>
-              <View style={styles.liveDot} />
-              <Text style={styles.sectionTitle}>En vivo ahora</Text>
-            </View>
-            <Text style={styles.sectionCount}>
-              {lives.length} transmisi{lives.length !== 1 ? "ones" : "ón"}
-            </Text>
-          </View>
-          <FlatList
-            horizontal
-            data={lives}
-            keyExtractor={(l) => `live-${l.id}`}
-            renderItem={({ item }) => (
-              <LiveCard live={item} onPress={() => router.push(`/live/${item.id}`)} />
-            )}
-            contentContainerStyle={styles.livesRow}
-            showsHorizontalScrollIndicator={false}
-          />
-        </View>
-      )}
       {auctions.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>

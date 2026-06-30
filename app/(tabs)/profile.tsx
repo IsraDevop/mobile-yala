@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -147,19 +147,25 @@ export default function ProfileScreen() {
             onCta={me.role === "SELLER" ? () => router.push("/(tabs)/sell") : undefined}
           />
         ) : (
-          <View style={styles.grid}>
-            {listings.map((item) => (
-              <ListingCard
-                key={item.id}
-                listing={item}
-                onPress={() =>
-                  item.mode === "AUCTION" && item.auction
-                    ? router.push(`/auction/${item.auction.id}`)
-                    : router.push(`/listing/${item.id}`)
-                }
-              />
-            ))}
-          </View>
+          <FlatList
+            data={listings}
+            horizontal
+            keyExtractor={(item) => String(item.id)}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.carousel}
+            renderItem={({ item }) => (
+              <View style={styles.carouselItem}>
+                <ListingCard
+                  listing={item}
+                  onPress={() =>
+                    item.mode === "AUCTION" && item.auction
+                      ? router.push(`/auction/${item.auction.id}`)
+                      : router.push(`/listing/${item.id}`)
+                  }
+                />
+              </View>
+            )}
+          />
         )
       ) : reviews.length === 0 ? (
         <EmptyState
@@ -275,6 +281,8 @@ const styles = StyleSheet.create({
   tabActive: { fontFamily: fonts.extrabold, color: palette.primary },
   underline: { height: 2.5, backgroundColor: palette.primary, borderRadius: 2, marginTop: -2.5 },
   grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 12, paddingTop: 12 },
+  carousel: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 4, gap: 12 },
+  carouselItem: { width: 210 },
   reviews: { padding: 18, gap: 10 },
   reviewCard: {
     backgroundColor: "#fff",

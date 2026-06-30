@@ -81,6 +81,17 @@ export default function GoLiveScreen() {
     };
   }, []);
 
+  // Polling fallback so incoming chat always renders even if a STOMP frame is missed.
+  useEffect(() => {
+    if (!streaming || !streamId) return;
+    const t = setInterval(() => {
+      liveService.listComments(streamId, 30)
+        .then((p) => setComments((prev) => mergeComments(prev, p.content || [])))
+        .catch(() => {});
+    }, 4000);
+    return () => clearInterval(t);
+  }, [streaming, streamId]);
+
   // Polling fallback: keep the host's chat feed fresh even if a realtime frame is missed.
   useEffect(() => {
     if (!streaming || !streamId) return;
@@ -164,8 +175,10 @@ export default function GoLiveScreen() {
     if (!streamId || !text || posting) return;
     setPosting(true);
     try {
-      await liveService.postComment(streamId, { text });
+      const created = await liveService.postComment(streamId, { text });
       setCommentText("");
+      // Optimistic render — the host sees their own message instantly; the STOMP echo dedups.
+      if (created) setComments((prev) => mergeComments(prev, [created]));
     } catch {
       // the comment just won't post; keep the text so the host can retry
     } finally {

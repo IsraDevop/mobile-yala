@@ -284,7 +284,7 @@ export default function LiveDetailScreen() {
               <TextInput
                 style={styles.bidInput}
                 value={bidInput}
-                onChangeText={setBidInput}
+                onChangeText={(t) => { let v = t.replace(/[^\d.]/g, ""); if (Number(v) > 9999) v = "9999"; setBidInput(v); }}
                 placeholder={`Mín. S/. ${minNext.toFixed(2)}`}
                 placeholderTextColor={palette.textTertiary}
                 keyboardType="decimal-pad"

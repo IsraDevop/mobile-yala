@@ -150,7 +150,7 @@ export default function AuctionDetailScreen() {
                 <Text style={styles.bidInputPrefix}>S/.</Text>
                 <TextInput
                   value={bidAmount}
-                  onChangeText={setBidAmount}
+                  onChangeText={(t) => { let v = t.replace(/[^\d.]/g, ""); if (Number(v) > 9999) v = "9999"; setBidAmount(v); }}
                   placeholder={`${(auction.currentPrice + increment).toFixed(0)}`}
                   placeholderTextColor="#B4B8C0"
                   keyboardType="decimal-pad"

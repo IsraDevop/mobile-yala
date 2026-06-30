@@ -21,6 +21,7 @@ import { ScreenHeader } from "../../src/components/ScreenHeader";
 import { Loader } from "../../src/components/Loader";
 import { ErrorView } from "../../src/components/ErrorView";
 import { getApiErrorMessage } from "../../src/utils/apiError";
+import { mergeComments } from "../../src/utils/liveChat";
 import { isLiveKitAvailable } from "../../src/utils/liveKit";
 import { palette, fonts } from "../../src/theme/theme";
 import type { FlashAuction, LiveComment, LiveDetail, LiveToken } from "../../src/types";
@@ -108,7 +109,7 @@ export default function LiveDetailScreen() {
         setLive(liveData);
         setAuction(liveData.activeAuction);
         setEnded(liveData.status === "ENDED");
-        setComments([...commentsPage.content].reverse());
+        setComments((prev) => mergeComments(prev, commentsPage.content));
         if (lkAvailable) {
           const tk = await liveService.getWatchToken(numId);
           setLkToken(tk);
@@ -138,7 +139,7 @@ export default function LiveDetailScreen() {
         });
         const unsubChat = await subscribeLiveChat(numId, (c) => {
           if (!mounted) return;
-          setComments((prev) => [...prev, c]);
+          setComments((prev) => mergeComments(prev, [c]));
         });
         unsubRefs.current = [unsubLive, unsubChat];
       } catch {}
@@ -150,6 +151,18 @@ export default function LiveDetailScreen() {
       unsubRefs.current = [];
     };
   }, [numId]);
+
+  // Polling fallback: keep the chat feed fresh even if a realtime frame is missed.
+  useEffect(() => {
+    if (!numId || ended) return;
+    const interval = setInterval(() => {
+      liveService
+        .listComments(numId, 30)
+        .then((p) => setComments((prev) => mergeComments(prev, p.content)))
+        .catch(() => {});
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [numId, ended]);
 
   const handleComment = useCallback(async () => {
     if (!chatInput.trim() || commentLoading) return;

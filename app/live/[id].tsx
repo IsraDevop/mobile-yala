@@ -262,61 +262,68 @@ export default function LiveDetailScreen() {
         </View>
       </View>
 
-      <View style={styles.infoRow}>
-        <Text numberOfLines={1} style={styles.liveTitle}>{live.title}</Text>
-        {live.seller && <Text style={styles.sellerName}>{live.seller.name}</Text>}
-      </View>
-
-      {auction && !ended && (
-        <View style={styles.auctionPanel}>
-          <Text style={styles.auctionLabel}>SUBASTA FLASH</Text>
-          <Text numberOfLines={1} style={styles.auctionTitle}>{auction.title}</Text>
-          <View style={styles.auctionPriceRow}>
-            <Text style={styles.auctionPrice}>
-              S/. {(auction.currentPrice ?? auction.basePrice).toFixed(2)}
-            </Text>
-            <Text style={styles.auctionBids}>
-              {auction.totalBids} puja{auction.totalBids !== 1 ? "s" : ""}
-            </Text>
-          </View>
-          {canBid ? (
-            <View style={styles.bidRow}>
-              <TextInput
-                style={styles.bidInput}
-                value={bidInput}
-                onChangeText={(t) => { let v = t.replace(/[^\d.]/g, ""); if (Number(v) > 9999) v = "9999"; setBidInput(v); }}
-                placeholder={`Mín. S/. ${minNext.toFixed(2)}`}
-                placeholderTextColor={palette.textTertiary}
-                keyboardType="decimal-pad"
-                returnKeyType="done"
-              />
-              <TouchableOpacity
-                style={[styles.bidBtn, bidLoading && styles.bidBtnDisabled]}
-                onPress={handleBid}
-                disabled={bidLoading}
-              >
-                <Text style={styles.bidBtnText}>{bidLoading ? "…" : "Pujar"}</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <Text style={styles.gateText}>
-              {!isAuth ? "Inicia sesión para pujar." : "Verifica tu identidad para pujar."}
-            </Text>
-          )}
-          {bidError && <Text style={styles.errorText}>{bidError}</Text>}
-        </View>
-      )}
-
       <FlatList
         ref={chatRef}
         data={comments}
         keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => (
-          <View style={styles.chatMsg}>
-            <Text style={styles.chatUser}>{item.userName ?? "Anónimo"}</Text>
-            <Text style={styles.chatText}> {item.text}</Text>
-          </View>
-        )}
+        ListHeaderComponent={
+          <>
+            <View style={styles.infoRow}>
+              <Text numberOfLines={1} style={styles.liveTitle}>{live.title}</Text>
+              {live.seller && <Text style={styles.sellerName}>{live.seller.name}</Text>}
+            </View>
+            {auction && !ended && (
+              <View style={styles.auctionPanel}>
+                <Text style={styles.auctionLabel}>SUBASTA FLASH</Text>
+                <Text numberOfLines={1} style={styles.auctionTitle}>{auction.title}</Text>
+                <View style={styles.auctionPriceRow}>
+                  <Text style={styles.auctionPrice}>
+                    S/. {(auction.currentPrice ?? auction.basePrice).toFixed(2)}
+                  </Text>
+                  <Text style={styles.auctionBids}>
+                    {auction.totalBids} puja{auction.totalBids !== 1 ? "s" : ""}
+                  </Text>
+                </View>
+                {canBid ? (
+                  <View style={styles.bidRow}>
+                    <TextInput
+                      style={styles.bidInput}
+                      value={bidInput}
+                      onChangeText={(t) => { let v = t.replace(/[^\d.]/g, ""); if (Number(v) > 9999) v = "9999"; setBidInput(v); }}
+                      placeholder={`Mín. S/. ${minNext.toFixed(2)}`}
+                      placeholderTextColor={palette.textTertiary}
+                      keyboardType="decimal-pad"
+                      returnKeyType="done"
+                    />
+                    <TouchableOpacity
+                      style={[styles.bidBtn, bidLoading && styles.bidBtnDisabled]}
+                      onPress={handleBid}
+                      disabled={bidLoading}
+                    >
+                      <Text style={styles.bidBtnText}>{bidLoading ? "…" : "Pujar"}</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <Text style={styles.gateText}>
+                    {!isAuth ? "Inicia sesión para pujar." : "Verifica tu identidad para pujar."}
+                  </Text>
+                )}
+                {bidError && <Text style={styles.errorText}>{bidError}</Text>}
+              </View>
+            )}
+            <Text style={styles.chatHeading}>Chat en vivo</Text>
+          </>
+        }
+        renderItem={({ item }) => {
+          const isBid = item.id < 0;
+          return (
+            <View style={[styles.chatMsg, isBid && styles.chatBid]}>
+              {isBid && <Ionicons name="hammer" size={13} color={palette.secondary} style={styles.chatBidIcon} />}
+              <Text style={[styles.chatUser, isBid && styles.chatBidUser]}>{item.userName ?? "Anónimo"}</Text>
+              <Text style={[styles.chatText, isBid && styles.chatBidText]}> {item.text}</Text>
+            </View>
+          );
+        }}
         style={styles.chatList}
         contentContainerStyle={styles.chatContent}
         onContentSizeChange={() => chatRef.current?.scrollToEnd({ animated: true })}
@@ -436,9 +443,14 @@ const styles = StyleSheet.create({
   errorText: { fontFamily: fonts.regular, fontSize: 12, color: palette.error, marginTop: 2 },
   chatList: { flex: 1 },
   chatContent: { padding: 14, gap: 6, flexGrow: 1 },
-  chatMsg: { flexDirection: "row", flexWrap: "wrap", paddingVertical: 3 },
+  chatMsg: { flexDirection: "row", flexWrap: "wrap", paddingVertical: 3, alignItems: "center" },
   chatUser: { fontFamily: fonts.bold, fontSize: 13, color: palette.primary },
   chatText: { fontFamily: fonts.regular, fontSize: 13, color: palette.textPrimary, flex: 1 },
+  chatHeading: { fontFamily: fonts.extrabold, fontSize: 13, color: palette.textSecondary, paddingTop: 8, paddingBottom: 2 },
+  chatBid: { backgroundColor: palette.secondaryBg, borderRadius: 8, paddingHorizontal: 8 },
+  chatBidIcon: { marginRight: 4 },
+  chatBidUser: { color: palette.secondary },
+  chatBidText: { fontFamily: fonts.bold, color: palette.secondary },
   chatEmpty: {
     textAlign: "center",
     fontFamily: fonts.regular,

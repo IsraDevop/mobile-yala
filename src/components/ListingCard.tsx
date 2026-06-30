@@ -7,9 +7,10 @@ import { palette, fonts } from "../theme/theme";
 interface ListingCardProps {
   listing: Listing;
   onPress: () => void;
+  hideActiveBadge?: boolean;
 }
 
-export function ListingCard({ listing, onPress }: ListingCardProps) {
+export function ListingCard({ listing, onPress, hideActiveBadge }: ListingCardProps) {
   const imageUrl = listing.imageUrls?.[0];
   const isAuction = listing.mode === "AUCTION";
   const price = isAuction && listing.auction ? listing.auction.currentPrice : listing.fixedPrice;
@@ -30,11 +31,13 @@ export function ListingCard({ listing, onPress }: ListingCardProps) {
               <Text style={styles.placeholderText}>Yala</Text>
             </View>
           )}
-          <View style={[styles.modeBadge, { backgroundColor: statusActive ? palette.secondary : "#fff" }]}>
-            <Text style={[styles.modeText, { color: statusActive ? "#fff" : palette.primary }]}>
-              {statusLabel}
-            </Text>
-          </View>
+          {!(hideActiveBadge && statusActive) && (
+            <View style={[styles.modeBadge, { backgroundColor: statusActive ? palette.secondary : "#fff" }]}>
+              <Text style={[styles.modeText, { color: statusActive ? "#fff" : palette.primary }]}>
+                {statusLabel}
+              </Text>
+            </View>
+          )}
         </View>
         <View style={styles.content}>
           <Text variant="labelSmall" style={styles.condition}>

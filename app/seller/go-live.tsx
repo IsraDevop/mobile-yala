@@ -19,6 +19,7 @@ import { ScreenHeader } from "../../src/components/ScreenHeader";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { Loader } from "../../src/components/Loader";
 import { getApiErrorMessage } from "../../src/utils/apiError";
+import { mergeComments } from "../../src/utils/liveChat";
 import { isLiveKitAvailable } from "../../src/utils/liveKit";
 import { palette, fonts } from "../../src/theme/theme";
 import type { FlashAuction, LiveComment, LiveToken } from "../../src/types";
@@ -71,6 +72,7 @@ export default function GoLiveScreen() {
   const [summarizing, setSummarizing] = useState(false);
   const unsubRef = useRef<(() => void) | null>(null);
   const chatUnsubRef = useRef<(() => void) | null>(null);
+  const chatRef = useRef<FlatList>(null);
 
   useEffect(() => {
     return () => {
@@ -78,6 +80,29 @@ export default function GoLiveScreen() {
       chatUnsubRef.current?.();
     };
   }, []);
+
+  // Polling fallback so incoming chat always renders even if a STOMP frame is missed.
+  useEffect(() => {
+    if (!streaming || !streamId) return;
+    const t = setInterval(() => {
+      liveService.listComments(streamId, 30)
+        .then((p) => setComments((prev) => mergeComments(prev, p.content || [])))
+        .catch(() => {});
+    }, 4000);
+    return () => clearInterval(t);
+  }, [streaming, streamId]);
+
+  // Polling fallback: keep the host's chat feed fresh even if a realtime frame is missed.
+  useEffect(() => {
+    if (!streaming || !streamId) return;
+    const interval = setInterval(() => {
+      liveService
+        .listComments(streamId, 30)
+        .then((p) => setComments((prev) => mergeComments(prev, p.content || [])))
+        .catch(() => {});
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [streaming, streamId]);
 
   if (!user?.isVerifiedSeller) {
     return (
@@ -133,10 +158,10 @@ export default function GoLiveScreen() {
       });
       unsubRef.current = unsub;
       liveService.listComments(tk.streamId, 30)
-        .then((p) => setComments([...(p.content || [])].reverse()))
+        .then((p) => setComments((prev) => mergeComments(prev, p.content || [])))
         .catch(() => {});
       chatUnsubRef.current = await subscribeLiveChat(tk.streamId, (c) =>
-        setComments((prev) => [...prev, c])
+        setComments((prev) => mergeComments(prev, [c]))
       );
     } catch (e) {
       setStartError(getApiErrorMessage(e));
@@ -150,8 +175,10 @@ export default function GoLiveScreen() {
     if (!streamId || !text || posting) return;
     setPosting(true);
     try {
-      await liveService.postComment(streamId, { text });
+      const created = await liveService.postComment(streamId, { text });
       setCommentText("");
+      // Optimistic render — the host sees their own message instantly; the STOMP echo dedups.
+      if (created) setComments((prev) => mergeComments(prev, [created]));
     } catch {
       // the comment just won't post; keep the text so the host can retry
     } finally {
@@ -332,6 +359,7 @@ export default function GoLiveScreen() {
           </View>
           {summary ? <Text style={styles.summaryText}>{summary}</Text> : null}
           <FlatList
+            ref={chatRef}
             data={comments}
             keyExtractor={(c) => String(c.id)}
             style={styles.chatList}
@@ -341,6 +369,7 @@ export default function GoLiveScreen() {
                 {item.text}
               </Text>
             )}
+            onContentSizeChange={() => chatRef.current?.scrollToEnd({ animated: true })}
             ListEmptyComponent={<Text style={styles.chatEmpty}>Aún no hay comentarios.</Text>}
           />
           <View style={styles.chatInputRow}>

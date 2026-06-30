@@ -11,7 +11,6 @@ import { useForm } from "../src/hooks/useForm";
 import { authService } from "../src/services/authService";
 import { getApiErrorMessage } from "../src/utils/apiError";
 import { getAvatarInitials } from "../src/utils/formatters";
-import { pickImageFromGallery } from "../src/utils/imageUtils";
 import { ScreenHeader } from "../src/components/ScreenHeader";
 import { Field } from "../src/components/Field";
 import { PrimaryButton } from "../src/components/PrimaryButton";
@@ -28,7 +27,6 @@ export default function EditProfileScreen() {
   const me = fullUser ?? user;
   const form = useForm({
     name: fullUser?.name ?? user?.name ?? "",
-    avatarUrl: fullUser?.avatarUrl ?? "",
   });
 
   async function handleSave() {
@@ -40,7 +38,6 @@ export default function EditProfileScreen() {
       setSaving(true);
       await authService.updateCurrentUser({
         name: form.values.name.trim(),
-        avatarUrl: form.values.avatarUrl.trim() || undefined,
       });
       showToast("Perfil actualizado", "success");
       router.back();
@@ -49,11 +46,6 @@ export default function EditProfileScreen() {
     } finally {
       setSaving(false);
     }
-  }
-
-  async function handlePickAvatar() {
-    const uri = await pickImageFromGallery();
-    if (uri) form.setValue("avatarUrl", uri);
   }
 
   async function handleLogout() {
@@ -76,17 +68,9 @@ export default function EditProfileScreen() {
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.avatarSection}>
-          <Pressable onPress={handlePickAvatar}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{getAvatarInitials(form.values.name || me.name)}</Text>
-            </View>
-            <View style={styles.cameraBadge}>
-              <Ionicons name="camera" size={14} color="#fff" />
-            </View>
-          </Pressable>
-          <Pressable onPress={handlePickAvatar}>
-            <Text style={styles.changeAvatar}>Cambiar avatar</Text>
-          </Pressable>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{getAvatarInitials(form.values.name || me.name)}</Text>
+          </View>
         </View>
 
         <Field
@@ -96,13 +80,6 @@ export default function EditProfileScreen() {
           error={form.errors.name}
         />
         <Field label="Email" value={me.email} editable={false} disabled />
-        <Field
-          label="URL de avatar"
-          value={form.values.avatarUrl}
-          onChangeText={(t) => form.setValue("avatarUrl", t)}
-          autoCapitalize="none"
-          placeholder="https://…"
-        />
 
         <Pressable style={styles.logout} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={18} color={palette.error} />

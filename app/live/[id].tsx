@@ -21,6 +21,7 @@ import { ScreenHeader } from "../../src/components/ScreenHeader";
 import { Loader } from "../../src/components/Loader";
 import { ErrorView } from "../../src/components/ErrorView";
 import { getApiErrorMessage } from "../../src/utils/apiError";
+import { mergeComments } from "../../src/utils/liveChat";
 import { isLiveKitAvailable } from "../../src/utils/liveKit";
 import { palette, fonts } from "../../src/theme/theme";
 import type { FlashAuction, LiveComment, LiveDetail, LiveToken } from "../../src/types";
@@ -50,8 +51,9 @@ function VideoStage() {
   );
 }
 
-function NativePlayer({ serverUrl, token }: { serverUrl: string; token: string }) {
+function NativePlayer({ serverUrl, token, onEnded }: { serverUrl: string; token: string; onEnded: () => void }) {
   const { LiveKitRoom, AudioSession } = require("@livekit/react-native");
+  const connectedRef = useRef(false);
 
   useEffect(() => {
     AudioSession.startAudioSession();
@@ -61,7 +63,15 @@ function NativePlayer({ serverUrl, token }: { serverUrl: string; token: string }
   }, []);
 
   return (
-    <LiveKitRoom serverUrl={serverUrl} token={token} connect audio={false} video={false}>
+    <LiveKitRoom
+      serverUrl={serverUrl}
+      token={token}
+      connect
+      audio={false}
+      video={false}
+      onConnected={() => { connectedRef.current = true; }}
+      onDisconnected={() => { if (connectedRef.current) onEnded(); }}
+    >
       <VideoStage />
     </LiveKitRoom>
   );
@@ -99,7 +109,7 @@ export default function LiveDetailScreen() {
         setLive(liveData);
         setAuction(liveData.activeAuction);
         setEnded(liveData.status === "ENDED");
-        setComments([...commentsPage.content].reverse());
+        setComments((prev) => mergeComments(prev, commentsPage.content));
         if (lkAvailable) {
           const tk = await liveService.getWatchToken(numId);
           setLkToken(tk);
@@ -129,7 +139,7 @@ export default function LiveDetailScreen() {
         });
         const unsubChat = await subscribeLiveChat(numId, (c) => {
           if (!mounted) return;
-          setComments((prev) => [...prev, c]);
+          setComments((prev) => mergeComments(prev, [c]));
         });
         unsubRefs.current = [unsubLive, unsubChat];
       } catch {}
@@ -141,6 +151,18 @@ export default function LiveDetailScreen() {
       unsubRefs.current = [];
     };
   }, [numId]);
+
+  // Polling fallback: keep the chat feed fresh even if a realtime frame is missed.
+  useEffect(() => {
+    if (!numId || ended) return;
+    const interval = setInterval(() => {
+      liveService
+        .listComments(numId, 30)
+        .then((p) => setComments((prev) => mergeComments(prev, p.content)))
+        .catch(() => {});
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [numId, ended]);
 
   const handleComment = useCallback(async () => {
     if (!chatInput.trim() || commentLoading) return;
@@ -209,8 +231,13 @@ export default function LiveDetailScreen() {
       <ScreenHeader title="Transmisión en vivo" />
 
       <View style={styles.videoContainer}>
-        {lkAvailable && lkToken ? (
-          <NativePlayer serverUrl={lkToken.url} token={lkToken.token} />
+        {ended ? (
+          <View style={[styles.stageContainer, styles.videoPlaceholder]}>
+            <Ionicons name="checkmark-done-circle-outline" size={40} color="#fff" />
+            <Text style={styles.waitingText}>La transmisión finalizó.</Text>
+          </View>
+        ) : lkAvailable && lkToken ? (
+          <NativePlayer serverUrl={lkToken.url} token={lkToken.token} onEnded={() => setEnded(true)} />
         ) : (
           <View style={styles.videoFallback}>
             {live.coverImageUrl ? (
@@ -257,7 +284,7 @@ export default function LiveDetailScreen() {
               <TextInput
                 style={styles.bidInput}
                 value={bidInput}
-                onChangeText={setBidInput}
+                onChangeText={(t) => { let v = t.replace(/[^\d.]/g, ""); if (Number(v) > 9999) v = "9999"; setBidInput(v); }}
                 placeholder={`Mín. S/. ${minNext.toFixed(2)}`}
                 placeholderTextColor={palette.textTertiary}
                 keyboardType="decimal-pad"

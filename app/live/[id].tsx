@@ -50,8 +50,9 @@ function VideoStage() {
   );
 }
 
-function NativePlayer({ serverUrl, token }: { serverUrl: string; token: string }) {
+function NativePlayer({ serverUrl, token, onEnded }: { serverUrl: string; token: string; onEnded: () => void }) {
   const { LiveKitRoom, AudioSession } = require("@livekit/react-native");
+  const connectedRef = useRef(false);
 
   useEffect(() => {
     AudioSession.startAudioSession();
@@ -61,7 +62,15 @@ function NativePlayer({ serverUrl, token }: { serverUrl: string; token: string }
   }, []);
 
   return (
-    <LiveKitRoom serverUrl={serverUrl} token={token} connect audio={false} video={false}>
+    <LiveKitRoom
+      serverUrl={serverUrl}
+      token={token}
+      connect
+      audio={false}
+      video={false}
+      onConnected={() => { connectedRef.current = true; }}
+      onDisconnected={() => { if (connectedRef.current) onEnded(); }}
+    >
       <VideoStage />
     </LiveKitRoom>
   );
@@ -209,8 +218,13 @@ export default function LiveDetailScreen() {
       <ScreenHeader title="Transmisión en vivo" />
 
       <View style={styles.videoContainer}>
-        {lkAvailable && lkToken ? (
-          <NativePlayer serverUrl={lkToken.url} token={lkToken.token} />
+        {ended ? (
+          <View style={[styles.stageContainer, styles.videoPlaceholder]}>
+            <Ionicons name="checkmark-done-circle-outline" size={40} color="#fff" />
+            <Text style={styles.waitingText}>La transmisión finalizó.</Text>
+          </View>
+        ) : lkAvailable && lkToken ? (
+          <NativePlayer serverUrl={lkToken.url} token={lkToken.token} onEnded={() => setEnded(true)} />
         ) : (
           <View style={styles.videoFallback}>
             {live.coverImageUrl ? (

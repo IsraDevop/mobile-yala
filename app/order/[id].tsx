@@ -9,6 +9,7 @@ import { useAuth } from "../../src/context/AuthContext";
 import { useToast } from "../../src/context/ToastContext";
 import { ScreenHeader } from "../../src/components/ScreenHeader";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
+import { ReviewDialog } from "../../src/components/ReviewDialog";
 import { Loader } from "../../src/components/Loader";
 import { ErrorView } from "../../src/components/ErrorView";
 import { orderService } from "../../src/services/orderService";
@@ -35,6 +36,7 @@ export default function OrderDetailScreen() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const [acting, setActing] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   const { data: order, loading, error, refetch } = useFetch<Order>(id ? `/orders/${id}` : null);
 
@@ -139,12 +141,17 @@ export default function OrderDetailScreen() {
         {order.status === "PENDING" && isSeller && (
           <PrimaryButton label="Confirmar venta" onPress={handleConfirm} loading={acting} />
         )}
+        {order.status === "CONFIRMED" && isBuyer && (
+          <PrimaryButton label="Reseñar al vendedor" onPress={() => setReviewOpen(true)} />
+        )}
         {order.status === "PENDING" && (
           <Pressable onPress={handleCancel} style={styles.cancel} disabled={acting}>
             <Text style={styles.cancelText}>Cancelar orden</Text>
           </Pressable>
         )}
       </View>
+
+      <ReviewDialog visible={reviewOpen} orderId={order.id} onDismiss={() => { setReviewOpen(false); refetch(); }} />
     </View>
   );
 }

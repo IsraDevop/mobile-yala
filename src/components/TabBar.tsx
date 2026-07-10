@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { palette, fonts } from "../theme/theme";
-import { useUnreadCount } from "../hooks/useUnreadCount";
+import { useUnread } from "../context/UnreadContext";
 
 const ICONS: Record<string, { on: keyof typeof Ionicons.glyphMap; off: keyof typeof Ionicons.glyphMap; label: string }> = {
   index: { on: "pricetags", off: "pricetags-outline", label: "Subastas" },
@@ -15,7 +15,7 @@ const ICONS: Record<string, { on: keyof typeof Ionicons.glyphMap; off: keyof typ
 
 export function TabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const { count } = useUnreadCount();
+  const { count } = useUnread();
 
   const routes = state.routes.filter((r) => r.name !== "sell");
   const sellRoute = state.routes.find((r) => r.name === "sell");

@@ -7,6 +7,7 @@ import { Loader } from "../../src/components/Loader";
 import { EmptyState } from "../../src/components/EmptyState";
 import { ErrorView } from "../../src/components/ErrorView";
 import { useToast } from "../../src/context/ToastContext";
+import { useUnread } from "../../src/context/UnreadContext";
 import { notificationService } from "../../src/services/notificationService";
 import { getApiErrorMessage } from "../../src/utils/apiError";
 import type { Notification } from "../../src/types";
@@ -15,6 +16,7 @@ import { palette, fonts } from "../../src/theme/theme";
 export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
+  const { refresh: refreshUnread, setZero } = useUnread();
   const { items, loading, loadMore, refresh, error } =
     usePaginatedFetch<Notification>("/notifications");
 
@@ -22,12 +24,14 @@ export default function NotificationsScreen() {
     try {
       await notificationService.markAsRead(id);
       refresh();
+      refreshUnread();
     } catch (err) {
       showToast(getApiErrorMessage(err), "error");
     }
   }
 
   async function handleMarkAllRead() {
+    setZero(); // clear the tab badge immediately
     try {
       await notificationService.markAllAsRead();
       showToast("Todo marcado como leído", "success");

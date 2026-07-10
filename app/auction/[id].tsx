@@ -15,7 +15,8 @@ import { useToast } from "../../src/context/ToastContext";
 import { bidService } from "../../src/services/bidService";
 import { listingService } from "../../src/services/listingService";
 import { getApiErrorMessage } from "../../src/utils/apiError";
-import { formatPrice } from "../../src/utils/formatters";
+import { formatPrice, getAvatarInitials } from "../../src/utils/formatters";
+import { RatingStars } from "../../src/components/RatingStars";
 import { isValidBidAmount } from "../../src/utils/validators";
 import type { Auction, Bid } from "../../src/types";
 import { palette, fonts } from "../../src/theme/theme";
@@ -113,6 +114,22 @@ export default function AuctionDetailScreen() {
           )}
         </View>
 
+        {auction.listing?.seller && (
+          <Pressable
+            style={styles.sellerCard}
+            onPress={() => router.push(`/seller/${auction.listing!.seller.id}`)}
+          >
+            <View style={styles.sellerAvatar}>
+              <Text style={styles.sellerAvatarText}>{getAvatarInitials(auction.listing.seller.name)}</Text>
+            </View>
+            <View style={styles.sellerInfo}>
+              <Text style={styles.sellerName}>{auction.listing.seller.name}</Text>
+              <RatingStars rating={auction.listing.seller.reputation} size={12} starColor={palette.star} textColor={palette.star} />
+            </View>
+            <Text style={styles.sellerLink}>Ver perfil ›</Text>
+          </Pressable>
+        )}
+
         <View style={styles.bidBox}>
           <View style={styles.bidBoxTop}>
             <View style={styles.bidLabelRow}>
@@ -187,6 +204,26 @@ const styles = StyleSheet.create({
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: palette.secondary },
   liveText: { color: palette.secondary, fontFamily: fonts.bold, fontSize: 11 },
   head: { paddingHorizontal: 18, paddingTop: 14 },
+  sellerCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginHorizontal: 18,
+    marginTop: 14,
+    padding: 12,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: palette.borderLight,
+  },
+  sellerAvatar: {
+    width: 38, height: 38, borderRadius: 19, backgroundColor: palette.avatarBg,
+    justifyContent: "center", alignItems: "center",
+  },
+  sellerAvatarText: { color: palette.primary, fontFamily: fonts.extrabold, fontSize: 14 },
+  sellerInfo: { flex: 1 },
+  sellerName: { fontFamily: fonts.bold, fontSize: 14, color: palette.textPrimary },
+  sellerLink: { fontFamily: fonts.bold, fontSize: 12, color: palette.primary },
   ownerDelete: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 },
   ownerDeleteText: { fontFamily: fonts.bold, fontSize: 13, color: palette.error },
   breadcrumb: { fontFamily: fonts.monoBold, fontSize: 10, color: palette.primary, letterSpacing: 0.6 },

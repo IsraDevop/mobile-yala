@@ -1,19 +1,22 @@
 import { useState } from "react";
-import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../src/context/AuthContext";
+import { useToast } from "../../src/context/ToastContext";
 import { useFetch } from "../../src/hooks/useFetch";
 import { RatingStars } from "../../src/components/RatingStars";
 import { ListingCard } from "../../src/components/ListingCard";
 import { EmptyState } from "../../src/components/EmptyState";
 import { getAvatarInitials, formatDate } from "../../src/utils/formatters";
+import { getApiErrorMessage } from "../../src/utils/apiError";
+import { paymentService } from "../../src/services/paymentService";
 import { palette, fonts } from "../../src/theme/theme";
-import type { User, Listing, Review } from "../../src/types";
+import type { User, Listing, Review, Order } from "../../src/types";
 
-type Tab = "listings" | "reviews";
+type Tab = "listings" | "reviews" | "won";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -27,18 +30,33 @@ export default function ProfileScreen() {
   const { data: reviewsPage, refetch: refetchReviews } = useFetch<{ content: Review[] }>(
     user ? `/reviews/user/${user.id}?page=0&size=20` : null
   );
+  const { data: wonPage, refetch: refetchWon } = useFetch<{ content: Order[] }>(
+    user ? `/orders/my-orders?page=0&size=20` : null
+  );
+  const { showToast } = useToast();
 
   const onRefresh = () => {
     refetchUser();
     refetchListings();
     refetchReviews();
+    refetchWon();
   };
+
+  async function handlePay(orderId: number) {
+    try {
+      const pref = await paymentService.createPreference({ orderId });
+      Linking.openURL(pref.initPoint);
+    } catch (err) {
+      showToast(getApiErrorMessage(err), "error");
+    }
+  }
 
   const me = fullUser ?? user;
   if (!me) return null;
 
   const listings = listingsPage?.content ?? [];
   const reviews = reviewsPage?.content ?? [];
+  const won = wonPage?.content ?? [];
   const reputation = fullUser?.reputation ?? 0;
 
   return (
@@ -131,6 +149,10 @@ export default function ProfileScreen() {
           <Text style={[styles.tab, tab === "listings" && styles.tabActive]}>Publicaciones</Text>
           {tab === "listings" && <View style={styles.underline} />}
         </Pressable>
+        <Pressable onPress={() => setTab("won")}>
+          <Text style={[styles.tab, tab === "won" && styles.tabActive]}>Ganadas</Text>
+          {tab === "won" && <View style={styles.underline} />}
+        </Pressable>
         <Pressable onPress={() => setTab("reviews")}>
           <Text style={[styles.tab, tab === "reviews" && styles.tabActive]}>Reseñas</Text>
           {tab === "reviews" && <View style={styles.underline} />}
@@ -166,6 +188,32 @@ export default function ProfileScreen() {
               </View>
             )}
           />
+        )
+      ) : tab === "won" ? (
+        won.length === 0 ? (
+          <EmptyState
+            icon="trophy-outline"
+            title="Sin subastas ganadas"
+            description="Cuando ganes una subasta, aparecerá acá para pagarla."
+          />
+        ) : (
+          <View style={styles.wonList}>
+            {won.map((o) => (
+              <Pressable key={o.id} style={styles.wonRow} onPress={() => router.push(`/order/${o.id}`)}>
+                <View style={styles.wonInfo}>
+                  <Text numberOfLines={1} style={styles.wonTitle}>{o.listing?.title ?? o.itemTitle ?? "Subasta"}</Text>
+                  <Text style={styles.wonMeta}>
+                    {o.status === "PENDING" ? "Pago pendiente" : o.status === "CONFIRMED" ? "Pagada" : "Cancelada"} · S/. {o.amount.toFixed(2)}
+                  </Text>
+                </View>
+                {o.status === "PENDING" && (
+                  <Pressable style={styles.wonPay} onPress={() => handlePay(o.id)}>
+                    <Text style={styles.wonPayText}>Pagar</Text>
+                  </Pressable>
+                )}
+              </Pressable>
+            ))}
+          </View>
         )
       ) : reviews.length === 0 ? (
         <EmptyState
@@ -284,6 +332,13 @@ const styles = StyleSheet.create({
   carousel: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 4, gap: 12 },
   carouselItem: { width: 210 },
   reviews: { padding: 18, gap: 10 },
+  wonList: { padding: 18, gap: 10 },
+  wonRow: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: palette.borderLight, borderRadius: 14, padding: 14 },
+  wonInfo: { flex: 1, minWidth: 0 },
+  wonTitle: { fontFamily: fonts.bold, fontSize: 14, color: palette.textPrimary },
+  wonMeta: { fontFamily: fonts.regular, fontSize: 12, color: palette.textSecondary, marginTop: 3 },
+  wonPay: { backgroundColor: palette.primary, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 9 },
+  wonPayText: { fontFamily: fonts.extrabold, fontSize: 13, color: "#fff" },
   reviewCard: {
     backgroundColor: "#fff",
     borderWidth: 1,

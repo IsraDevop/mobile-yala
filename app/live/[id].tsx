@@ -12,8 +12,9 @@ import {
   View,
 } from "react-native";
 import { Text } from "react-native-paper";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../src/context/AuthContext";
 import { liveService } from "../../src/services/liveService";
 import { subscribeLive, subscribeLiveChat } from "../../src/realtime/liveSocket";
@@ -29,7 +30,7 @@ import type { FlashAuction, LiveComment, LiveDetail, LiveToken } from "../../src
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || "https://yala.dpdns.org";
 const lkAvailable = isLiveKitAvailable();
 
-function VideoStage() {
+function VideoStage({ fullscreen = false }: { fullscreen?: boolean }) {
   const { useTracks, VideoTrack } = require("@livekit/react-native");
   const { Track } = require("livekit-client");
   const tracks: any[] = useTracks(
@@ -37,12 +38,13 @@ function VideoStage() {
     { onlySubscribed: true }
   );
   const cam = tracks.find((t: any) => t.publication?.kind === "video");
+  const containerStyle = fullscreen ? StyleSheet.absoluteFill : styles.stageContainer;
   return (
-    <View style={styles.stageContainer}>
+    <View style={containerStyle}>
       {cam ? (
-        <VideoTrack trackRef={cam} style={styles.stageContainer} objectFit="cover" />
+        <VideoTrack trackRef={cam} style={containerStyle} objectFit="cover" />
       ) : (
-        <View style={[styles.stageContainer, styles.videoPlaceholder]}>
+        <View style={[containerStyle, styles.videoPlaceholder]}>
           <Ionicons name="videocam-outline" size={36} color="#fff" />
           <Text style={styles.waitingText}>Esperando el video del vendedor…</Text>
         </View>
@@ -51,7 +53,17 @@ function VideoStage() {
   );
 }
 
-function NativePlayer({ serverUrl, token, onEnded }: { serverUrl: string; token: string; onEnded: () => void }) {
+function NativePlayer({
+  serverUrl,
+  token,
+  onEnded,
+  fullscreen = false,
+}: {
+  serverUrl: string;
+  token: string;
+  onEnded: () => void;
+  fullscreen?: boolean;
+}) {
   const { LiveKitRoom, AudioSession } = require("@livekit/react-native");
   const connectedRef = useRef(false);
 
@@ -72,7 +84,7 @@ function NativePlayer({ serverUrl, token, onEnded }: { serverUrl: string; token:
       onConnected={() => { connectedRef.current = true; }}
       onDisconnected={() => { if (connectedRef.current) onEnded(); }}
     >
-      <VideoStage />
+      <VideoStage fullscreen={fullscreen} />
     </LiveKitRoom>
   );
 }
@@ -80,6 +92,7 @@ function NativePlayer({ serverUrl, token, onEnded }: { serverUrl: string; token:
 export default function LiveDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const numId = Number(id);
 
   const [live, setLive] = useState<LiveDetail | null>(null);
@@ -94,6 +107,8 @@ export default function LiveDetailScreen() {
   const [bidLoading, setBidLoading] = useState(false);
   const [commentLoading, setCommentLoading] = useState(false);
   const [bidError, setBidError] = useState<string | null>(null);
+  const [customMode, setCustomMode] = useState(false);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
   const chatRef = useRef<FlatList>(null);
   const unsubRefs = useRef<Array<() => void>>([]);
 
@@ -164,6 +179,31 @@ export default function LiveDetailScreen() {
     return () => clearInterval(interval);
   }, [numId, ended]);
 
+  // Polling fallback for live state: catches auction start/close missed by STOMP.
+  useEffect(() => {
+    if (!numId || ended) return;
+    const interval = setInterval(async () => {
+      try {
+        const liveData = await liveService.findById(numId);
+        if (liveData.status === "ENDED") {
+          setEnded(true);
+          setAuction(null);
+        } else {
+          setAuction(liveData.activeAuction);
+        }
+      } catch {}
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [numId, ended]);
+
+  useEffect(() => {
+    const showEvt = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const onShow = Keyboard.addListener(showEvt, (e) => setKeyboardOffset(e.endCoordinates.height));
+    const onHide = Keyboard.addListener(hideEvt, () => setKeyboardOffset(0));
+    return () => { onShow.remove(); onHide.remove(); };
+  }, []);
+
   const handleComment = useCallback(async () => {
     if (!chatInput.trim() || commentLoading) return;
     Keyboard.dismiss();
@@ -179,6 +219,17 @@ export default function LiveDetailScreen() {
     ? (auction.currentPrice == null ? auction.basePrice : auction.currentPrice + auction.bidIncrement)
     : 0;
 
+  // If a new bid lands while customMode is open and the current value is now below the new minimum, re-seed.
+  useEffect(() => {
+    if (customMode) {
+      const cur = parseFloat(bidInput.replace(",", "."));
+      if (isNaN(cur) || cur < minNext) {
+        setBidInput(String(minNext));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [minNext]);
+
   const handleBid = useCallback(async () => {
     if (bidLoading || !auction) return;
     setBidError(null);
@@ -191,6 +242,7 @@ export default function LiveDetailScreen() {
     try {
       await liveService.placeBid(auction.id, { amount });
       setBidInput("");
+      setCustomMode(false);
     } catch (e: any) {
       if (e?.response?.status === 409) {
         setBidError("Te ganaron. Sube tu puja.");
@@ -201,6 +253,24 @@ export default function LiveDetailScreen() {
       setBidLoading(false);
     }
   }, [bidLoading, auction, bidInput, minNext]);
+
+  const handleQuickBid = useCallback(async () => {
+    if (bidLoading || !auction) return;
+    setBidError(null);
+    setBidLoading(true);
+    try {
+      await liveService.placeBid(auction.id, { amount: minNext });
+      setCustomMode(false);
+    } catch (e: any) {
+      if (e?.response?.status === 409) {
+        setBidError("Te ganaron. Sube tu puja.");
+      } else {
+        setBidError(getApiErrorMessage(e));
+      }
+    } finally {
+      setBidLoading(false);
+    }
+  }, [bidLoading, auction, minNext]);
 
   if (loading) {
     return (
@@ -223,10 +293,188 @@ export default function LiveDetailScreen() {
   const isAuth = !!user;
   const canBid = isAuth && !!user?.isIdentityVerified;
 
+  // Immersive (TikTok-style) layout when LiveKit video is available and the stream is active.
+  const immersive = lkAvailable && !!lkToken && !ended;
+
+  if (immersive) {
+    return (
+      <KeyboardAvoidingView
+        style={styles.immersiveRoot}
+        behavior={undefined}
+      >
+        {/* Full-screen video background */}
+        <View style={StyleSheet.absoluteFill}>
+          <NativePlayer
+            serverUrl={lkToken!.url}
+            token={lkToken!.token}
+            onEnded={() => setEnded(true)}
+            fullscreen
+          />
+        </View>
+
+        {/* Top scrim: back button + live badge + title/seller */}
+        <View style={[styles.topScrim, { paddingTop: insets.top + 8 }]}>
+          <View style={styles.topScrimRow}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
+              <Ionicons name="chevron-back" size={26} color="#fff" />
+            </TouchableOpacity>
+            <View style={styles.immersiveLiveBadge}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveBadgeText}>En vivo</Text>
+            </View>
+          </View>
+          <Text numberOfLines={1} style={styles.immersiveTitle}>{live.title}</Text>
+          {live.seller && (
+            <Text style={styles.immersiveSeller}>{live.seller.name}</Text>
+          )}
+        </View>
+
+        {/* Bottom overlay: chat + auction card + comment bar */}
+        <View style={[styles.immersiveBottom, {
+          bottom: keyboardOffset,
+          paddingBottom: keyboardOffset > 0 ? 6 : insets.bottom + 6,
+        }]}>
+          {/* Last 5 chat messages overlaid (non-interactive) */}
+          {comments.length > 0 && (
+            <View style={styles.immersiveChatOverlay} pointerEvents="none">
+              {comments.slice(-5).map((item) => {
+                const isBid = item.id < 0;
+                return (
+                  <View key={item.id} style={styles.immersiveChatPill}>
+                    <Text style={[styles.immersiveChatUser, isBid && styles.immersiveBidUser]}>
+                      {item.userName ?? "Anónimo"}
+                    </Text>
+                    {isBid && (
+                      <Ionicons
+                        name="hammer"
+                        size={11}
+                        color={palette.secondary}
+                        style={{ marginHorizontal: 3 }}
+                      />
+                    )}
+                    <Text style={[styles.immersiveChatText, isBid && styles.immersiveBidText]}>
+                      {" "}{item.text}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
+          {/* Floating auction card */}
+          {auction && !ended && (
+            <View style={styles.auctionCard}>
+              <View style={styles.auctionCardHeader}>
+                {live.coverImageUrl ? (
+                  <Image source={{ uri: live.coverImageUrl }} style={styles.auctionThumb} />
+                ) : (
+                  <View style={[styles.auctionThumb, styles.auctionThumbPlaceholder]}>
+                    <Ionicons name="pricetag" size={14} color={palette.primary} />
+                  </View>
+                )}
+                <View style={styles.auctionInfo}>
+                  <Text numberOfLines={1} style={styles.auctionCardTitle}>{auction.title}</Text>
+                  <Text style={styles.auctionCardMeta}>
+                    S/. {(auction.currentPrice ?? auction.basePrice).toFixed(2)}
+                    {"  "}·{"  "}
+                    {auction.totalBids} puja{auction.totalBids !== 1 ? "s" : ""}
+                  </Text>
+                </View>
+              </View>
+
+              {canBid ? (
+                customMode ? (
+                  <View style={styles.customBidRow}>
+                    <TextInput
+                      style={styles.customBidInput}
+                      value={bidInput}
+                      onChangeText={(t) => {
+                        let v = t.replace(/[^\d.]/g, "");
+                        if (Number(v) > 9999) v = "9999";
+                        setBidInput(v);
+                      }}
+                      keyboardType="decimal-pad"
+                      returnKeyType="done"
+                      autoFocus
+                      placeholder={`Mín. S/. ${minNext.toFixed(2)}`}
+                      placeholderTextColor={palette.textTertiary}
+                    />
+                    <TouchableOpacity
+                      style={[styles.quickBidBtn, bidLoading && styles.bidBtnDisabled]}
+                      onPress={handleBid}
+                      disabled={bidLoading}
+                    >
+                      <Text style={styles.quickBidBtnText}>{bidLoading ? "…" : "Pujar"}</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={styles.whatnotRow}>
+                    <TouchableOpacity
+                      style={styles.customBtn}
+                      onPress={() => { setCustomMode(true); setBidInput(String(minNext)); }}
+                    >
+                      <Text style={styles.customBtnText}>Personalizar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.quickBidBtn, styles.quickBidBtnWide, bidLoading && styles.bidBtnDisabled]}
+                      onPress={handleQuickBid}
+                      disabled={bidLoading}
+                    >
+                      <Ionicons name="flash" size={15} color="#fff" style={{ marginRight: 4 }} />
+                      <Text style={styles.quickBidBtnText}>
+                        {bidLoading ? "…" : `Pujar  S/. ${minNext.toFixed(2)}`}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )
+              ) : (
+                <Text style={styles.gateText}>
+                  {!isAuth ? "Inicia sesión para pujar." : "Verifica tu identidad para pujar."}
+                </Text>
+              )}
+              {bidError && <Text style={styles.errorText}>{bidError}</Text>}
+            </View>
+          )}
+
+          {/* Comment input bar */}
+          {isAuth ? (
+            <View style={styles.immersiveCommentBar}>
+              <TextInput
+                style={styles.immersiveCommentInput}
+                value={chatInput}
+                onChangeText={setChatInput}
+                placeholder="Escribe un comentario…"
+                placeholderTextColor="rgba(255,255,255,0.5)"
+                returnKeyType="send"
+                onSubmitEditing={handleComment}
+              />
+              <TouchableOpacity
+                onPress={handleComment}
+                disabled={commentLoading || !chatInput.trim()}
+                style={styles.sendBtn}
+              >
+                <Ionicons
+                  name="send"
+                  size={18}
+                  color={chatInput.trim() ? "#fff" : "rgba(255,255,255,0.4)"}
+                />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.immersiveGate}>
+              <Text style={styles.immersiveGateText}>Inicia sesión para participar en el chat.</Text>
+            </View>
+          )}
+        </View>
+      </KeyboardAvoidingView>
+    );
+  }
+
+  // ── Fallback layout (Expo Go / LiveKit not available / stream ended) ──────────────────────────
   return (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior="padding"
     >
       <ScreenHeader title="Transmisión en vivo" />
 
@@ -365,13 +613,20 @@ export default function LiveDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  // ── Shared ───────────────────────────────────────────────────────────────────
   flex: { flex: 1, backgroundColor: palette.background },
+  gateText: { fontFamily: fonts.regular, fontSize: 12, color: palette.textSecondary, marginTop: 2 },
+  errorText: { fontFamily: fonts.regular, fontSize: 12, color: palette.error, marginTop: 2 },
+  waitingText: { color: "#fff", fontFamily: fonts.regular, fontSize: 13 },
+  sendBtn: { padding: 4 },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#fff" },
+
+  // ── Fallback layout (Expo Go / ended) ────────────────────────────────────────
   videoContainer: { position: "relative", backgroundColor: palette.dark },
   stageContainer: { width: "100%", height: 210 },
   videoFallback: { width: "100%", height: 210, position: "relative" },
   coverImg: { width: "100%", height: 210, resizeMode: "cover" },
   videoPlaceholder: { backgroundColor: palette.primary, justifyContent: "center", alignItems: "center", gap: 8 },
-  waitingText: { color: "#fff", fontFamily: fonts.regular, fontSize: 13 },
   webBtn: {
     position: "absolute",
     bottom: 12,
@@ -398,7 +653,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   endedBadge: { backgroundColor: palette.textSecondary },
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#fff" },
   liveDotEnded: { backgroundColor: "#ddd" },
   liveBadgeText: { color: "#fff", fontFamily: fonts.bold, fontSize: 10, textTransform: "uppercase" },
   infoRow: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: "#fff", gap: 2 },
@@ -439,8 +693,6 @@ const styles = StyleSheet.create({
   },
   bidBtnDisabled: { opacity: 0.6 },
   bidBtnText: { color: "#fff", fontFamily: fonts.bold, fontSize: 14 },
-  gateText: { fontFamily: fonts.regular, fontSize: 12, color: palette.textSecondary, marginTop: 2 },
-  errorText: { fontFamily: fonts.regular, fontSize: 12, color: palette.error, marginTop: 2 },
   chatList: { flex: 1 },
   chatContent: { padding: 14, gap: 6, flexGrow: 1 },
   chatMsg: { flexDirection: "row", flexWrap: "wrap", paddingVertical: 3, alignItems: "center" },
@@ -478,12 +730,165 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: palette.textPrimary,
   },
-  sendBtn: { padding: 4 },
   commentGate: {
     paddingHorizontal: 14,
     paddingVertical: 10,
     backgroundColor: "#fff",
     borderTopWidth: 1,
     borderTopColor: palette.borderLight,
+  },
+
+  // ── Immersive layout (TikTok-style) ──────────────────────────────────────────
+  immersiveRoot: { flex: 1, backgroundColor: "#000" },
+
+  topScrim: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    backgroundColor: "rgba(0,0,0,0.35)",
+  },
+  topScrimRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 8,
+  },
+  backBtn: { padding: 2 },
+  immersiveLiveBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: palette.secondary,
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  immersiveTitle: {
+    fontFamily: fonts.extrabold,
+    fontSize: 16,
+    color: "#fff",
+  },
+  immersiveSeller: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: "rgba(255,255,255,0.75)",
+    marginTop: 2,
+  },
+
+  immersiveBottom: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    gap: 8,
+  },
+
+  immersiveChatOverlay: {
+    width: "65%",
+    gap: 4,
+    paddingBottom: 4,
+  },
+  immersiveChatPill: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(0,0,0,0.38)",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginBottom: 2,
+  },
+  immersiveChatUser: { fontFamily: fonts.bold, fontSize: 13, color: "#fff" },
+  immersiveChatText: { fontFamily: fonts.regular, fontSize: 13, color: "#fff" },
+  immersiveBidUser: { color: palette.secondary },
+  immersiveBidText: { fontFamily: fonts.bold, color: palette.secondary },
+
+  auctionCard: {
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  auctionCardHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
+  auctionThumb: { width: 44, height: 44, borderRadius: 10 },
+  auctionThumbPlaceholder: {
+    backgroundColor: palette.avatarBg,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  auctionInfo: { flex: 1 },
+  auctionCardTitle: { fontFamily: fonts.bold, fontSize: 13, color: palette.textPrimary },
+  auctionCardMeta: { fontFamily: fonts.mono, fontSize: 11, color: palette.textSecondary, marginTop: 2 },
+
+  whatnotRow: { flexDirection: "row", gap: 8, alignItems: "center" },
+  customBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: palette.border,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  customBtnText: { fontFamily: fonts.bold, fontSize: 14, color: palette.textPrimary },
+  quickBidBtn: {
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: palette.secondary,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 16,
+  },
+  quickBidBtnWide: { flex: 2 },
+  quickBidBtnText: { fontFamily: fonts.extrabold, fontSize: 14, color: "#fff" },
+
+  customBidRow: { flexDirection: "row", gap: 8 },
+  customBidInput: {
+    flex: 1,
+    height: 46,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: palette.border,
+    paddingHorizontal: 14,
+    fontFamily: fonts.mono,
+    fontSize: 15,
+    color: palette.textPrimary,
+    backgroundColor: "#fff",
+  },
+
+  immersiveCommentBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  immersiveCommentInput: {
+    flex: 1,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    paddingHorizontal: 16,
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    color: "#fff",
+  },
+  immersiveGate: { paddingVertical: 8 },
+  immersiveGateText: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: "rgba(255,255,255,0.7)",
+    textAlign: "center",
   },
 });

@@ -26,6 +26,7 @@ import {
 } from "@expo-google-fonts/jetbrains-mono";
 import { AuthProvider } from "../src/context/AuthContext";
 import { ToastProvider } from "../src/context/ToastContext";
+import { UnreadProvider } from "../src/context/UnreadContext";
 import { lightTheme } from "../src/theme/theme";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -53,6 +54,7 @@ export default function RootLayout() {
       <PaperProvider theme={lightTheme}>
         <AuthProvider>
           <ToastProvider>
+            <UnreadProvider>
             <StatusBar style="dark" />
             <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#F5F6F8" } }}>
               <Stack.Screen name="(auth)" />
@@ -71,6 +73,7 @@ export default function RootLayout() {
               <Stack.Screen name="seller/apply" />
               <Stack.Screen name="seller/go-live" />
             </Stack>
+            </UnreadProvider>
           </ToastProvider>
         </AuthProvider>
       </PaperProvider>

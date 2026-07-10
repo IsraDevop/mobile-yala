@@ -7,7 +7,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFetch } from "../../src/hooks/useFetch";
 import { useDebounce } from "../../src/hooks/useDebounce";
 import { useAuth } from "../../src/context/AuthContext";
-import { AuctionCard } from "../../src/components/AuctionCard";
 import { ListingCard } from "../../src/components/ListingCard";
 import { SearchBar } from "../../src/components/SearchBar";
 import { CategoryTabs } from "../../src/components/CategoryTabs";
@@ -16,7 +15,7 @@ import { Loader } from "../../src/components/Loader";
 import { ErrorView } from "../../src/components/ErrorView";
 import { EmptyState } from "../../src/components/EmptyState";
 import { getAvatarInitials } from "../../src/utils/formatters";
-import type { Category, Auction, Listing } from "../../src/types";
+import type { Category, Listing } from "../../src/types";
 import { palette, fonts } from "../../src/theme/theme";
 
 export default function HomeScreen() {
@@ -27,58 +26,27 @@ export default function HomeScreen() {
   const debouncedSearch = useDebounce(search, 400);
 
   const { data: categories } = useFetch<Category[]>("/categories");
-  const { data: auctionsPage, refetch: refetchAuctions } = useFetch<{ content: Auction[] }>("/auctions?page=0&size=10");
-  const auctions = auctionsPage?.content ?? [];
 
-  const listingParams = new URLSearchParams({ page: "0", size: "20" });
-  if (debouncedSearch) listingParams.set("q", debouncedSearch);
+  const params = new URLSearchParams({ mode: "AUCTION", page: "0", size: "20" });
+  if (debouncedSearch) params.set("q", debouncedSearch);
   if (selectedCategory) {
     const cat = categories?.find((c) => c.id === selectedCategory);
-    if (cat) listingParams.set("category", cat.name);
+    if (cat) params.set("category", cat.name);
   }
 
-  const { data: listingsPage, loading, error, refetch } =
-    useFetch<{ content: Listing[] }>(`/listings?${listingParams.toString()}`);
-  const listings = listingsPage?.content ?? [];
+  const { data: auctionsPage, loading, error, refetch } =
+    useFetch<{ content: Listing[] }>(`/listings?${params.toString()}`);
+  const auctions = auctionsPage?.content ?? [];
 
   const handleCategorySelect = useCallback((id: number | null) => {
     setSelectedCategory(id);
     setSearch("");
   }, []);
 
-  const onRefresh = useCallback(() => {
-    refetch();
-    refetchAuctions();
-  }, [refetch, refetchAuctions]);
-
-  // Refetch when the tab regains focus so deleted/stale auctions don't linger in memory.
-  const refetchRef = useRef(onRefresh);
-  refetchRef.current = onRefresh;
+  // Refetch when the tab regains focus so stale auctions don't linger.
+  const refetchRef = useRef(refetch);
+  refetchRef.current = refetch;
   useFocusEffect(useCallback(() => { refetchRef.current(); }, []));
-
-  const ListHeader = (
-    <View>
-      {auctions.length > 0 && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.liveRow}>
-              <View style={styles.liveDot} />
-              <Text style={styles.sectionTitle}>Subastas en vivo</Text>
-            </View>
-            <Text style={styles.sectionCount}>
-              {auctions.length} activa{auctions.length !== 1 ? "s" : ""}
-            </Text>
-          </View>
-          <View style={styles.auctionList}>
-            {auctions.map((a) => (
-              <AuctionCard key={a.id} auction={a} onPress={() => router.push(`/auction/${a.id}`)} />
-            ))}
-          </View>
-        </View>
-      )}
-      <Text style={styles.listingsTitle}>Publicaciones</Text>
-    </View>
-  );
 
   return (
     <View style={styles.flex}>
@@ -110,19 +78,22 @@ export default function HomeScreen() {
 
       {error ? (
         <ErrorView message={error} onRetry={refetch} />
-      ) : loading && listings.length === 0 ? (
+      ) : loading && auctions.length === 0 ? (
         <Loader />
       ) : (
         <FlatList
-          data={listings}
+          data={auctions}
           keyExtractor={(item) => String(item.id)}
           numColumns={2}
-          ListHeaderComponent={ListHeader}
+          ListHeaderComponent={
+            <Text style={styles.feedTitle}>Subastas</Text>
+          }
           renderItem={({ item }) => (
             <ListingCard
               listing={item}
+              hideActiveBadge
               onPress={() =>
-                item.mode === "AUCTION" && item.auction
+                item.auction
                   ? router.push(`/auction/${item.auction.id}`)
                   : router.push(`/listing/${item.id}`)
               }
@@ -131,12 +102,12 @@ export default function HomeScreen() {
           columnWrapperStyle={styles.column}
           contentContainerStyle={styles.grid}
           refreshControl={
-            <RefreshControl refreshing={loading} onRefresh={onRefresh} tintColor={palette.primary} />
+            <RefreshControl refreshing={loading} onRefresh={refetch} tintColor={palette.primary} />
           }
           ListEmptyComponent={
             <EmptyState
-              icon="search-outline"
-              title="Sin resultados"
+              icon="pricetag-outline"
+              title="Sin subastas activas"
               description="Prueba con otro término o cambia los filtros."
               ctaLabel="Limpiar búsqueda"
               onCta={() => { setSearch(""); setSelectedCategory(null); }}
@@ -164,26 +135,12 @@ const styles = StyleSheet.create({
   },
   avatarText: { color: palette.primary, fontFamily: fonts.extrabold, fontSize: 13 },
   categories: { marginTop: 14, marginHorizontal: -20, paddingHorizontal: 20 },
-  section: { marginTop: 16 },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    marginBottom: 14,
-  },
-  liveRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: palette.secondary },
-  sectionTitle: { fontFamily: fonts.extrabold, fontSize: 16, color: palette.textPrimary },
-  sectionCount: { fontFamily: fonts.mono, fontSize: 11, color: palette.textTertiary },
-  auctionList: { paddingHorizontal: 20, gap: 14 },
-  livesRow: { paddingHorizontal: 20, gap: 14 },
-  listingsTitle: {
+  feedTitle: {
     fontFamily: fonts.extrabold,
     fontSize: 16,
     color: palette.textPrimary,
     paddingHorizontal: 20,
-    marginTop: 22,
+    marginTop: 18,
     marginBottom: 4,
   },
   column: { paddingHorizontal: 14 },

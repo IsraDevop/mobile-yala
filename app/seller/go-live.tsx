@@ -22,7 +22,7 @@ import { getApiErrorMessage } from "../../src/utils/apiError";
 import { mergeComments } from "../../src/utils/liveChat";
 import { isLiveKitAvailable } from "../../src/utils/liveKit";
 import { palette, fonts } from "../../src/theme/theme";
-import type { FlashAuction, LiveComment, LiveToken } from "../../src/types";
+import type { FlashAuction, LiveComment, LiveToken, Bid } from "../../src/types";
 
 const lkAvailable = isLiveKitAvailable();
 
@@ -66,6 +66,7 @@ export default function GoLiveScreen() {
   const [auctionError, setAuctionError] = useState<string | null>(null);
   const [endLoading, setEndLoading] = useState(false);
   const [comments, setComments] = useState<LiveComment[]>([]);
+  const [bids, setBids] = useState<Bid[]>([]);
   const [commentText, setCommentText] = useState("");
   const [posting, setPosting] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
@@ -81,28 +82,35 @@ export default function GoLiveScreen() {
     };
   }, []);
 
-  // Polling fallback so incoming chat always renders even if a STOMP frame is missed.
+  // Polling fallback so the host's chat renders even if a realtime frame is missed during streaming.
   useEffect(() => {
     if (!streaming || !streamId) return;
     const t = setInterval(() => {
       liveService.listComments(streamId, 30)
         .then((p) => setComments((prev) => mergeComments(prev, p.content || [])))
         .catch(() => {});
-    }, 4000);
+    }, 3000);
     return () => clearInterval(t);
   }, [streaming, streamId]);
 
-  // Polling fallback: keep the host's chat feed fresh even if a realtime frame is missed.
+  // While a flash auction is live, keep the bids + current price fresh for the host. Bids are ephemeral
+  // (STOMP-only), so we poll listBids and refresh the auction state — the seller always sees how it's going,
+  // even if the video stream starves the socket.
   useEffect(() => {
-    if (!streaming || !streamId) return;
-    const interval = setInterval(() => {
-      liveService
-        .listComments(streamId, 30)
-        .then((p) => setComments((prev) => mergeComments(prev, p.content || [])))
+    if (!streaming || !streamId || !auction || auction.status !== "ACTIVE") return;
+    const auctionId = auction.id;
+    const tick = () => {
+      liveService.listBids(auctionId, 0, 20)
+        .then((page: any) => setBids(page?.content ?? []))
         .catch(() => {});
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [streaming, streamId]);
+      liveService.findById(streamId)
+        .then((d) => { if (d?.activeAuction) setAuction(d.activeAuction); })
+        .catch(() => {});
+    };
+    tick();
+    const t = setInterval(tick, 3000);
+    return () => clearInterval(t);
+  }, [streaming, streamId, auction?.id, auction?.status]);
 
   if (!user?.isVerifiedSeller) {
     return (
@@ -345,6 +353,18 @@ export default function GoLiveScreen() {
                   </Text>
                   <Text style={styles.activeBids}>{auction!.totalBids} puja{auction!.totalBids !== 1 ? "s" : ""}</Text>
                 </View>
+                {bids.length > 0 && (
+                  <View style={styles.bidsFeed}>
+                    <Text style={styles.bidsFeedTitle}>Últimas pujas</Text>
+                    {bids.slice(0, 5).map((b) => (
+                      <View key={b.id} style={styles.bidFeedRow}>
+                        <Ionicons name="arrow-up-circle" size={14} color={palette.secondary} />
+                        <Text numberOfLines={1} style={styles.bidUser}>{b.bidder?.name ?? "Alguien"}</Text>
+                        <Text style={styles.bidAmount}>S/. {Number(b.amount).toFixed(2)}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
                 <TouchableOpacity
                   style={[styles.actionBtn, styles.closeAuctionBtn, auctionLoading && styles.btnDisabled]}
                   onPress={handleCloseAuction}
@@ -442,6 +462,11 @@ const styles = StyleSheet.create({
   chatSend: { width: 42, height: 42, borderRadius: 12, backgroundColor: palette.primary, justifyContent: "center", alignItems: "center" },
   auctionForm: { gap: 10 },
   activeAuction: { gap: 8, backgroundColor: "#fff", borderRadius: 14, padding: 14, borderWidth: 1, borderColor: palette.borderLight },
+  bidsFeed: { gap: 5, marginTop: 2, paddingTop: 8, borderTopWidth: 1, borderTopColor: palette.borderLight },
+  bidsFeedTitle: { fontFamily: fonts.bold, fontSize: 11, color: palette.textTertiary, textTransform: "uppercase", letterSpacing: 0.4 },
+  bidFeedRow: { flexDirection: "row", alignItems: "center", gap: 7 },
+  bidUser: { flex: 1, fontFamily: fonts.semibold, fontSize: 13, color: palette.textPrimary },
+  bidAmount: { fontFamily: fonts.monoBold, fontSize: 13, color: palette.secondary },
   sectionTitle: { fontFamily: fonts.bold, fontSize: 14, color: palette.textPrimary },
   activeAuctionTitle: { fontFamily: fonts.extrabold, fontSize: 16, color: palette.textPrimary },
   priceRow: { flexDirection: "row", alignItems: "baseline", gap: 10 },
